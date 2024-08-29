@@ -19,13 +19,14 @@ type BehaviourFactory interface {
 
 func main() {
 	domain := dns.Fqdn("naughty-nameserver.com.")
-	ns1 := "13.42.38.192"
-	ns2 := "13.42.38.192"
+	ns1 := "35.178.186.142"
+	ns2 := "35.178.186.142"
 
 	nameserver = naughty.NewNameserver(domain, []string{ns1, ns2})
 
 	behaviours := map[string]BehaviourFactory{
-		"invalid-rrsig": &behaviour.InvalidRRSig{},
+		"all-valid":     new(behaviour.AllValidAlgorithms),
+		"invalid-rrsig": new(behaviour.InvalidRRSig),
 	}
 
 	for _, b := range behaviours {
@@ -74,6 +75,8 @@ func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 		msg.RecursionAvailable = false
 		msg.Rcode = dns.RcodeServerFailure
 	}
+
+	log.Printf("%s\n", msg.String())
 
 	// Send the response
 	err = w.WriteMsg(msg)

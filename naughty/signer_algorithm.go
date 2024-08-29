@@ -1,49 +1,62 @@
 package naughty
 
 import (
+	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rsa"
+	"fmt"
 	"github.com/miekg/dns"
 	"time"
 )
 
-// SimpleSigner uses a single ECDSAP256SHA256 CSK to sign anything passed.
-type SimpleSigner struct {
+type SimpleAlgorithmSigner struct {
 	key    *dns.DNSKEY
-	signer *ecdsa.PrivateKey
+	signer crypto.Signer
 	hash   uint8
 }
 
-func NewSimpleSigner(zone string) *SimpleSigner {
+func NewSimpleAlgorithmSigner(zone string, algorithm uint8, bits int) (Signer, error) {
 	dnskey := &dns.DNSKEY{
 		Hdr:       NewHeader(zone, dns.TypeDNSKEY),
 		Flags:     DnskeyFlagCsk,
 		Protocol:  3,
-		Algorithm: dns.ECDSAP256SHA256,
+		Algorithm: algorithm,
 	}
 
-	secret, err := dnskey.Generate(256)
+	secret, err := dnskey.Generate(bits)
 	if err != nil {
 		panic(err)
 	}
 
-	signer, _ := secret.(*ecdsa.PrivateKey)
+	var signer crypto.Signer
+	switch s := secret.(type) {
+	case *ecdsa.PrivateKey:
+		signer = s
+	case *rsa.PrivateKey:
+		signer = s
+	case ed25519.PrivateKey:
+		signer = s
+	default:
+		return nil, fmt.Errorf("unknown secret type: %T", secret)
+	}
 
-	return &SimpleSigner{
+	return &SimpleAlgorithmSigner{
 		hash:   dns.SHA256,
 		signer: signer,
 		key:    dnskey,
-	}
+	}, nil
 }
 
-func (s *SimpleSigner) Keys() []*dns.DNSKEY {
+func (s *SimpleAlgorithmSigner) Keys() []*dns.DNSKEY {
 	return []*dns.DNSKEY{s.key}
 }
 
-func (s *SimpleSigner) DelegatedSingers() []*dns.DS {
+func (s *SimpleAlgorithmSigner) DelegatedSingers() []*dns.DS {
 	return []*dns.DS{s.key.ToDS(s.hash)}
 }
 
-func (s *SimpleSigner) Sign(msg *dns.Msg) (*dns.Msg, error) {
+func (s *SimpleAlgorithmSigner) Sign(msg *dns.Msg) (*dns.Msg, error) {
 	for _, rrset := range GroupRecordsByType(msg.Answer) {
 		rrsig, err := s.signSet(rrset)
 		if err != nil {
@@ -61,7 +74,7 @@ func (s *SimpleSigner) Sign(msg *dns.Msg) (*dns.Msg, error) {
 	return msg, nil
 }
 
-func (s *SimpleSigner) signSet(rrset []dns.RR) (*dns.RRSIG, error) {
+func (s *SimpleAlgorithmSigner) signSet(rrset []dns.RR) (*dns.RRSIG, error) {
 	inception := time.Now().Unix() - (60 * 60 * 2)
 	expiration := time.Now().Unix() + (60 * 60 * 2)
 	rrsig := &dns.RRSIG{
