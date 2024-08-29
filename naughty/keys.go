@@ -1,0 +1,38 @@
+package naughty
+
+/*
+Both keys are deliberately committed for testing purposes:
+
+1. One key is for the root (.) zone.
+2. The other key is for the server's base domain name (e.g., naughty-nameserver.com).
+
+These keys are intended to be static, as the DS records need to remain consistent.
+The primary goal of this code is not to create a "secure" server, but rather to serve
+as a useful tool for testing scenarios.
+*/
+
+const (
+	basePublic = "pRlzRCaKV5zUS3IWaktbE2qOHrlzFxKeph+yYUJhUzGCWqkJ9EJ2+dmCXbIsmrJiDm1jeCUo8nw05LInAEIPcw=="
+	baseSecret = `
+Private-key-format: v1.3
+Algorithm: 13 (ECDSAP256SHA256)
+PrivateKey: 8srg2Q8FnyvO5iGYZYiNddGEIsnZbYApwbWTWTBI6qE=
+`
+)
+
+const (
+	// The root is RSA 2048 - like the real root.
+	rootPublic = "AwEAAag6EGz4StMEWGPQat5LmQrgfVklr3I02yAq0+qrL0fDEnEJPmF23amWVL5O5e8ezZ3EsiSPRLCn3hWySdyWOAZEk2VQFYIDdVK+B7oL3cezCdZN9VIfwVxxG3GwAKtJYaAEwWH4UAlcbqXElnlpte4cG5E+clmia5WBdJoMb/3+TtvHlLEx4n+XHs/OojispxqVKzdCuIXjwdnEl9eIO+UE5L3HjfzR3rKNH/iA/UfVGglKm+3QYuNRh9+krMhvvRcX3pOlnNuKiH2smxFTU/W3xyhXSgt0oDrPeotL1WwW1Q3sx9p40VjBRb2XqlznF1p1XE87lN2U5RIjo14GFwc="
+	rootSecret = `
+Private-key-format: v1.3
+Algorithm: 8 (RSASHA256)
+Modulus: qDoQbPhK0wRYY9Bq3kuZCuB9WSWvcjTbICrT6qsvR8MScQk+YXbdqZZUvk7l7x7NncSyJI9EsKfeFbJJ3JY4BkSTZVAVggN1Ur4Hugvdx7MJ1k31Uh/BXHEbcbAAq0lhoATBYfhQCVxupcSWeWm17hwbkT5yWaJrlYF0mgxv/f5O28eUsTHif5cez86iOKynGpUrN0K4hePB2cSX14g75QTkvceN/NHeso0f+ID9R9UaCUqb7dBi41GH36SsyG+9Fxfek6Wc24qIfaybEVNT9bfHKFdKC3SgOs96i0vVbBbVDezH2njRWMFFvZeqXOcXWnVcTzuU3ZTlEiOjXgYXBw==
+PublicExponent: AQAB
+PrivateExponent: E8Pesi7p+6kDCZcvNzcCoDiIAbVfy7dSF5FwnJ3ITFIrFITVg3YHzSkQg9uZQGMKHYNCuvDqTScr/LiZ3QT5SCM+fiTOohvt6O7S0ZUbVZ8/hKJcNG3utgHEC7N2IKnagoaMggo+vRrTFT7nvxQgf/1lb8c6gDWJFmPDY2YasmjB0WPzdG12wxQRJU6zdoEe6kXcC3KiS/P8gNPNnyauTYTlV/5k9sPTqwJeTcbhW3zU9Biyu1FMQh7g8VyI24BAXRVeNpOBirywRpXcpmJJ8w7O9o0ZMwwuwE96TCeeBHPjs8ktGStQPbJQjZ6jlYsMUdqILqdLG5FeCv4imedHQQ==
+Prime1: waTIch7z7p51UzoITQtmgDRdE4S02kzd6XFX8eXIsTcShJ4GxeJhyWFus8rZVDaJPyCh+YRJIsO44+eYmwjJgs1bFellYKI3ryZhYhs1PCmOXQjhNhSL8Tge364iHs+LvQhyy4EUzEWdljA8v6ATAW6bekQmSisE6ZwFjXZq4j8=
+Prime2: 3mYD5PxVyMYKpedvEVA67xCdwCYH5GMak35baVZGvb1mYMJnpgUiNHl6rAHc4k5lxd2y6dNij2csBXDAD1qK1jzHtlCPfdhNS93wSOli1g6hTTgx3StCheawQJP02GNLp2RmaEG0kCVGDfmiKHAB53qVl8wQlCTqXCGIJ/1aiTk=
+Exponent1: sqF35w52p6C1Slk2XxwtKgcj9WVuEBLogvhz0EnQoOnUw1Gjndf/rO2cWW6+nNjSMtG/mZVWgiNa46I5PIsWmPsnE0eCpWn/RCt7mizPJviOw3P1jRXXImZK1Lyl7RY4KeEpRGGG9gkiHfHRmFPqNF/8PQWw7KpSlc2/sYeTgbE=
+Exponent2: LXuZkkwU0zHFXbaeHWFWHCw+xtxAQvINrlpqIXnWj9lbRbCcd/SW0TqC3wimftXftH6pp25musMz2oz7imhO+o+FnICPSAJjlH94M8EfSH3HeT5j3EKLoUzTgPGBYnu0LjC3TN0bK1ukHxmNk02M5iVI0LmYLmP6Vgs5iEwlJuk=
+Coefficient: vE+Gr4Y3CvoI0tQkDibyIsSrK1oYEFeNFBLtuocnSWV2NxPtrqFmG2Y1rVOw+lbS+9IUcl0RG+MLqgZ4Xk3wWxr0WgGC9n8kkg4/uQzzEGVOYuo+8Tq/jzhi/uyzlK+os6Y0PtH9laIhQ7iHiZClirS8UHHHAY+g2wCKrnJoeZA=
+`
+)
