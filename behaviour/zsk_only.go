@@ -15,7 +15,7 @@ We will sign both the DNSKEY RRs and the normal RRs with this key.
 
 The DS record for the zone will be generated from the ZSK.
 
-THis setup is not valid; the DS record must be generated from a key with a flag for 257.
+This setup is not valid; the DS record must be generated from a key with a flag for 257.
 i.e. a KSK/CSK.
 */
 type ZskOnly struct{}
@@ -24,7 +24,7 @@ func (t *ZskOnly) Setup(ns *naughty.Nameserver) error {
 
 	name := dns.Fqdn(fmt.Sprintf("zsk-only.%s", ns.BaseZoneName))
 
-	signer := naughty.NewSignerAutogenSingleSimple(name)
+	signer := naughty.NewSignerAutogenSingleDefault(name)
 
 	// Set this to be a Zone Signing Key.
 	signer.SetDnsKeyFlag(naughty.DnskeyFlagZsk)

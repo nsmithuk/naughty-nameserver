@@ -56,6 +56,12 @@ func (t *AllValidAlgorithms) Setup(ns *naughty.Nameserver) error {
 		}
 		zone.AddRecord(a)
 
+		a = &dns.A{
+			Hdr: naughty.NewHeader(name, dns.TypeA),
+			A:   net.ParseIP("192.0.2.53").To4(),
+		}
+		zone.AddRecord(a)
+
 		log.Printf("Valid record added: %s\n", a.Header().Name)
 	}
 

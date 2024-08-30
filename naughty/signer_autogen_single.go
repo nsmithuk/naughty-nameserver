@@ -7,7 +7,6 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"github.com/miekg/dns"
-	"time"
 )
 
 /*
@@ -17,6 +16,15 @@ type SignerAutogenSingle struct {
 	key    *dns.DNSKEY
 	signer crypto.Signer
 	hash   uint8
+}
+
+// NewSignerAutogenSingleDefault Creates the default config - a ECDSAP256SHA256 CSK
+func NewSignerAutogenSingleDefault(zone string) *SignerAutogenSingle {
+	signer, err := NewSignerAutogenSingle(zone, dns.ECDSAP256SHA256, 256)
+	if err != nil {
+		panic(err)
+	}
+	return signer
 }
 
 func NewSignerAutogenSingle(zone string, algorithm uint8, bits int) (*SignerAutogenSingle, error) {
@@ -56,6 +64,14 @@ func (s *SignerAutogenSingle) SetDnsKeyFlag(flag uint16) {
 	s.key.Flags = flag
 }
 
+func (s *SignerAutogenSingle) Key() *dns.DNSKEY {
+	return s.key
+}
+
+func (s *SignerAutogenSingle) Signer() crypto.Signer {
+	return s.signer
+}
+
 func (s *SignerAutogenSingle) Keys() []*dns.DNSKEY {
 	return []*dns.DNSKEY{s.key}
 }
@@ -65,34 +81,5 @@ func (s *SignerAutogenSingle) DelegatedSingers() []*dns.DS {
 }
 
 func (s *SignerAutogenSingle) Sign(msg *dns.Msg) (*dns.Msg, error) {
-	for _, rrset := range GroupRecordsByType(msg.Answer) {
-		rrsig, err := s.signSet(rrset)
-		if err != nil {
-			return nil, err
-		}
-		msg.Answer = append(msg.Answer, rrsig)
-	}
-	for _, rrset := range GroupRecordsByType(msg.Ns) {
-		rrsig, err := s.signSet(rrset)
-		if err != nil {
-			return nil, err
-		}
-		msg.Ns = append(msg.Ns, rrsig)
-	}
-	return msg, nil
-}
-
-func (s *SignerAutogenSingle) signSet(rrset []dns.RR) (*dns.RRSIG, error) {
-	inception := time.Now().Unix() - (60 * 60 * 2)
-	expiration := time.Now().Unix() + (60 * 60 * 2)
-	rrsig := &dns.RRSIG{
-		Hdr:        NewHeader("", 0), // Values are set by Sign()
-		Inception:  uint32(inception),
-		Expiration: uint32(expiration),
-		KeyTag:     s.key.KeyTag(),
-		SignerName: s.key.Header().Name,
-		Algorithm:  s.key.Algorithm,
-	}
-	err := rrsig.Sign(s.signer, rrset)
-	return rrsig, err
+	return SignMsg(s.key, s.signer, msg, SignRRSet)
 }

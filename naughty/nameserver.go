@@ -122,7 +122,7 @@ func (ns *Nameserver) BuildInitialZones() {
 				strings.NewReader(rootSecret),
 			)
 		default:
-			signer = NewSignerAutogenSingleSimple(name)
+			signer = NewSignerAutogenSingleDefault(name)
 		}
 
 		ns.Zones[name] = NewZone(name, ns.NSRecords, signer, new(DefaultMutator))

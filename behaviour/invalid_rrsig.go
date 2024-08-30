@@ -3,29 +3,30 @@ package behaviour
 import (
 	"fmt"
 	"github.com/miekg/dns"
+	"log"
 	"naughty-nameserver/naughty"
 	"net"
 )
 
 /*
-InvalidRRSig returns an invalid rrsig for the RR.
+InvalidRRSigSignature returns an invalid rrsig for the RR.
 
 It does this by signing a response with a different A record IP address, then the
 one returned to the user.
 
 To use: test.rrsig-signature-invalid.<base-domain>
 */
-type InvalidRRSig struct {
+type InvalidRRSigSignature struct {
 	answer  dns.RR
 	valid   net.IP
 	invalid net.IP
 }
 
-func (t *InvalidRRSig) Setup(ns *naughty.Nameserver) error {
+func (t *InvalidRRSigSignature) Setup(ns *naughty.Nameserver) error {
 
 	name := dns.Fqdn(fmt.Sprintf("rrsig-signature-invalid.%s", ns.BaseZoneName))
 
-	zone := naughty.NewZone(name, ns.NSRecords, naughty.NewSignerAutogenSingleSimple(name), t)
+	zone := naughty.NewZone(name, ns.NSRecords, naughty.NewSignerAutogenSingleDefault(name), t)
 	ns.BaseZone.DelegateTo(zone)
 	ns.Zones[name] = zone
 
@@ -42,16 +43,18 @@ func (t *InvalidRRSig) Setup(ns *naughty.Nameserver) error {
 	}
 	zone.AddRecord(t.answer)
 
+	log.Printf("Invalid record added: %s\n", t.answer.Header().Name)
+
 	return nil
 }
 
-func (t *InvalidRRSig) PreSigning(msg *dns.Msg) *dns.Msg {
+func (t *InvalidRRSigSignature) PreSigning(msg *dns.Msg) *dns.Msg {
 	// Change the answer to something else.
 	t.answer.(*dns.A).A = t.invalid
 	return msg
 }
 
-func (t *InvalidRRSig) PostSigning(msg *dns.Msg) *dns.Msg {
+func (t *InvalidRRSigSignature) PostSigning(msg *dns.Msg) *dns.Msg {
 	// Revert back to the original.
 	t.answer.(*dns.A).A = t.valid
 	return msg

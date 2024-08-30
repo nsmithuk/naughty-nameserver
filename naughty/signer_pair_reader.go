@@ -13,7 +13,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 //------------------------------------------------------
@@ -119,41 +118,8 @@ func (s *IoReaderSigner) DelegatedSingers() []*dns.DS {
 }
 
 func (s *IoReaderSigner) Sign(msg *dns.Msg) (*dns.Msg, error) {
-	for typ, rrset := range GroupRecordsByType(msg.Answer) {
-		rrsig, err := s.signSet(rrset, typ)
-		if err != nil {
-			return nil, err
-		}
-		msg.Answer = append(msg.Answer, rrsig)
+	if ContainsType(msg.Answer, dns.TypeDNSKEY) {
+		return SignMsg(s.ksk, s.kSigner, msg, SignRRSet)
 	}
-	for typ, rrset := range GroupRecordsByType(msg.Ns) {
-		rrsig, err := s.signSet(rrset, typ)
-		if err != nil {
-			return nil, err
-		}
-		msg.Ns = append(msg.Ns, rrsig)
-	}
-	return msg, nil
-}
-
-func (s *IoReaderSigner) signSet(rrset []dns.RR, rrtype uint16) (*dns.RRSIG, error) {
-	key := s.zsk
-	signer := s.zSigner
-	if rrtype == dns.TypeDNSKEY {
-		key = s.ksk
-		signer = s.kSigner
-	}
-
-	inception := time.Now().Unix() - (60 * 60 * 2)
-	expiration := time.Now().Unix() + (60 * 60 * 2)
-	rrsig := &dns.RRSIG{
-		Hdr:        NewHeader("", 0), // Values are set by Sign()
-		Inception:  uint32(inception),
-		Expiration: uint32(expiration),
-		KeyTag:     key.KeyTag(),
-		SignerName: key.Header().Name,
-		Algorithm:  key.Algorithm,
-	}
-	err := rrsig.Sign(signer, rrset)
-	return rrsig, err
+	return SignMsg(s.zsk, s.zSigner, msg, SignRRSet)
 }

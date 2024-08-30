@@ -2,6 +2,7 @@ package naughty
 
 import (
 	"github.com/miekg/dns"
+	"strings"
 	"time"
 )
 
@@ -103,11 +104,12 @@ func (z *Zone) DelegateTo(child *Zone) {
 }
 
 func (z *Zone) Query(qmsg *dns.Msg) (*dns.Msg, error) {
-	q := RecordKey{qmsg.Question[0].Name, qmsg.Question[0].Qtype}
+	// We lower-case the name here to work with DNS 0x20 encoding.
+	q := RecordKey{strings.ToLower(qmsg.Question[0].Name), qmsg.Question[0].Qtype}
 
 	rmsg := new(dns.Msg)
 	rmsg.SetReply(qmsg)
-	rmsg.Authoritative = true // TODO: Not always the case.s
+	rmsg.Authoritative = true // TODO: Not always the case.
 	rmsg.RecursionAvailable = false
 
 	if q.typ == dns.TypeNS && q.Name == z.Name {

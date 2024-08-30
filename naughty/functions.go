@@ -42,6 +42,11 @@ func NewHeader(name string, rrtype uint16) dns.RR_Header {
 	}
 }
 
+func ContainsType(rrset []dns.RR, t uint16) bool {
+	_, ok := GroupRecordsByType(rrset)[t]
+	return ok
+}
+
 func GroupRecordsByType(rrset []dns.RR) map[uint16][]dns.RR {
 	results := make(map[uint16][]dns.RR)
 	for _, rr := range rrset {
