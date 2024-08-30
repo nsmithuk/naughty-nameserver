@@ -27,6 +27,7 @@ func main() {
 	behaviours := map[string]BehaviourFactory{
 		"all-valid":     new(behaviour.AllValidAlgorithms),
 		"invalid-rrsig": new(behaviour.InvalidRRSig),
+		"zsk-only":      new(behaviour.ZskOnly),
 	}
 
 	for _, b := range behaviours {

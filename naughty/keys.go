@@ -21,7 +21,7 @@ PrivateKey: 8srg2Q8FnyvO5iGYZYiNddGEIsnZbYApwbWTWTBI6qE=
 )
 
 const (
-	// The root is RSA 2048 - like the real root.
+	// The root is RSA 2048, like the real root.
 	rootPublic = "AwEAAag6EGz4StMEWGPQat5LmQrgfVklr3I02yAq0+qrL0fDEnEJPmF23amWVL5O5e8ezZ3EsiSPRLCn3hWySdyWOAZEk2VQFYIDdVK+B7oL3cezCdZN9VIfwVxxG3GwAKtJYaAEwWH4UAlcbqXElnlpte4cG5E+clmia5WBdJoMb/3+TtvHlLEx4n+XHs/OojispxqVKzdCuIXjwdnEl9eIO+UE5L3HjfzR3rKNH/iA/UfVGglKm+3QYuNRh9+krMhvvRcX3pOlnNuKiH2smxFTU/W3xyhXSgt0oDrPeotL1WwW1Q3sx9p40VjBRb2XqlznF1p1XE87lN2U5RIjo14GFwc="
 	rootSecret = `
 Private-key-format: v1.3

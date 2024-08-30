@@ -10,13 +10,16 @@ import (
 	"time"
 )
 
-type SimpleAlgorithmSigner struct {
+/*
+SignerAutogenSingle Generates a CSK signer using the passed algorithm and bit count.
+*/
+type SignerAutogenSingle struct {
 	key    *dns.DNSKEY
 	signer crypto.Signer
 	hash   uint8
 }
 
-func NewSimpleAlgorithmSigner(zone string, algorithm uint8, bits int) (Signer, error) {
+func NewSignerAutogenSingle(zone string, algorithm uint8, bits int) (*SignerAutogenSingle, error) {
 	dnskey := &dns.DNSKEY{
 		Hdr:       NewHeader(zone, dns.TypeDNSKEY),
 		Flags:     DnskeyFlagCsk,
@@ -41,22 +44,27 @@ func NewSimpleAlgorithmSigner(zone string, algorithm uint8, bits int) (Signer, e
 		return nil, fmt.Errorf("unknown secret type: %T", secret)
 	}
 
-	return &SimpleAlgorithmSigner{
+	return &SignerAutogenSingle{
 		hash:   dns.SHA256,
 		signer: signer,
 		key:    dnskey,
 	}, nil
 }
 
-func (s *SimpleAlgorithmSigner) Keys() []*dns.DNSKEY {
+// SetDnsKeyFlag allows the DNSKEY flags to be amended.
+func (s *SignerAutogenSingle) SetDnsKeyFlag(flag uint16) {
+	s.key.Flags = flag
+}
+
+func (s *SignerAutogenSingle) Keys() []*dns.DNSKEY {
 	return []*dns.DNSKEY{s.key}
 }
 
-func (s *SimpleAlgorithmSigner) DelegatedSingers() []*dns.DS {
+func (s *SignerAutogenSingle) DelegatedSingers() []*dns.DS {
 	return []*dns.DS{s.key.ToDS(s.hash)}
 }
 
-func (s *SimpleAlgorithmSigner) Sign(msg *dns.Msg) (*dns.Msg, error) {
+func (s *SignerAutogenSingle) Sign(msg *dns.Msg) (*dns.Msg, error) {
 	for _, rrset := range GroupRecordsByType(msg.Answer) {
 		rrsig, err := s.signSet(rrset)
 		if err != nil {
@@ -74,7 +82,7 @@ func (s *SimpleAlgorithmSigner) Sign(msg *dns.Msg) (*dns.Msg, error) {
 	return msg, nil
 }
 
-func (s *SimpleAlgorithmSigner) signSet(rrset []dns.RR) (*dns.RRSIG, error) {
+func (s *SignerAutogenSingle) signSet(rrset []dns.RR) (*dns.RRSIG, error) {
 	inception := time.Now().Unix() - (60 * 60 * 2)
 	expiration := time.Now().Unix() + (60 * 60 * 2)
 	rrsig := &dns.RRSIG{

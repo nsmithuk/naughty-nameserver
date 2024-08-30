@@ -7,6 +7,14 @@ import (
 	"net"
 )
 
+/*
+InvalidRRSig returns an invalid rrsig for the RR.
+
+It does this by signing a response with a different A record IP address, then the
+one returned to the user.
+
+To use: test.rrsig-signature-invalid.<base-domain>
+*/
 type InvalidRRSig struct {
 	answer  dns.RR
 	valid   net.IP
@@ -17,7 +25,7 @@ func (t *InvalidRRSig) Setup(ns *naughty.Nameserver) error {
 
 	name := dns.Fqdn(fmt.Sprintf("rrsig-signature-invalid.%s", ns.BaseZoneName))
 
-	zone := naughty.NewZone(name, ns.NSRecords, naughty.NewSimpleSigner(name), t)
+	zone := naughty.NewZone(name, ns.NSRecords, naughty.NewSignerAutogenSingleSimple(name), t)
 	ns.BaseZone.DelegateTo(zone)
 	ns.Zones[name] = zone
 
