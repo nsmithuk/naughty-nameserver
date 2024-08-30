@@ -29,7 +29,7 @@ func (t *ZskOnly) Setup(ns *naughty.Nameserver) error {
 	// Set this to be a Zone Signing Key.
 	signer.SetDnsKeyFlag(naughty.DnskeyFlagZsk)
 
-	zone := naughty.NewZone(name, ns.NSRecords, signer, new(naughty.DefaultMutator))
+	zone := naughty.NewZone(name, ns.NSRecords, naughty.NewStandardCallbacks(signer))
 	ns.BaseZone.DelegateTo(zone)
 	ns.Zones[name] = zone
 
@@ -39,7 +39,7 @@ func (t *ZskOnly) Setup(ns *naughty.Nameserver) error {
 	}
 	zone.AddRecord(a)
 
-	log.Printf("Invalid record added: %s\n", a.Header().Name)
+	log.Printf("Valid record added: %s\n", a.Header().Name)
 
 	return nil
 }

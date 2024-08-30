@@ -58,11 +58,11 @@ func NewNameserver(baseZoneName string, nsIPv4s []string) *Nameserver {
 }
 
 func (ns *Nameserver) RootDelegatedSingers() []*dns.DS {
-	return ns.RootZone.Signer.DelegatedSingers()
+	return ns.RootZone.Callbacks.DelegatedSingers()
 }
 
 func (ns *Nameserver) BaseDelegatedSingers() []*dns.DS {
-	return ns.BaseZone.Signer.DelegatedSingers()
+	return ns.BaseZone.Callbacks.DelegatedSingers()
 }
 
 func (ns *Nameserver) Query(qmsg *dns.Msg) (*dns.Msg, error) {
@@ -125,7 +125,7 @@ func (ns *Nameserver) BuildInitialZones() {
 			signer = NewSignerAutogenSingleDefault(name)
 		}
 
-		ns.Zones[name] = NewZone(name, ns.NSRecords, signer, new(DefaultMutator))
+		ns.Zones[name] = NewZone(name, ns.NSRecords, NewStandardCallbacks(signer))
 
 		if last != nil {
 			ns.Zones[name].DelegateTo(last)
@@ -133,7 +133,7 @@ func (ns *Nameserver) BuildInitialZones() {
 
 		if name == "." {
 			// If we're at the root, add our DS records to the actual zone, to ensure it's returned.
-			for _, ds := range ns.Zones[name].Signer.DelegatedSingers() {
+			for _, ds := range ns.Zones[name].Callbacks.DelegatedSingers() {
 				ns.Zones[name].AddRecord(ds)
 			}
 			ns.RootZone = ns.Zones[name]

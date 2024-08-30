@@ -46,18 +46,12 @@ func (t *AllValidAlgorithms) Setup(ns *naughty.Nameserver) error {
 			return err
 		}
 
-		zone := naughty.NewZone(name, ns.NSRecords, signer, new(naughty.DefaultMutator))
+		zone := naughty.NewZone(name, ns.NSRecords, naughty.NewStandardCallbacks(signer))
 		ns.BaseZone.DelegateTo(zone)
 		ns.Zones[name] = zone
 
 		a := &dns.A{
 			Hdr: naughty.NewHeader(fmt.Sprintf("test.%s", name), dns.TypeA),
-			A:   net.ParseIP("192.0.2.53").To4(),
-		}
-		zone.AddRecord(a)
-
-		a = &dns.A{
-			Hdr: naughty.NewHeader(name, dns.TypeA),
 			A:   net.ParseIP("192.0.2.53").To4(),
 		}
 		zone.AddRecord(a)

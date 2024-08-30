@@ -39,7 +39,7 @@ func (t *TwoValidZsks) Setup(ns *naughty.Nameserver) error {
 	//---
 
 	// Note that we use "ourselves" as the Signer.
-	zone := naughty.NewZone(name, ns.NSRecords, t, new(naughty.DefaultMutator))
+	zone := naughty.NewZone(name, ns.NSRecords, naughty.NewStandardCallbacks(t))
 	ns.BaseZone.DelegateTo(zone)
 	ns.Zones[name] = zone
 

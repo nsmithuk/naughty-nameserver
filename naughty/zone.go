@@ -9,8 +9,7 @@ import (
 type Zone struct {
 	Name string
 
-	Mutator Mutator
-	Signer  Signer
+	Callbacks *Callbacks
 
 	NS  []GluedNS
 	SOA *dns.SOA
@@ -27,7 +26,7 @@ type RecordSet []dns.RR
 
 //---
 
-func NewZone(name string, nameservers []GluedNS, signer Signer, mutator Mutator) *Zone {
+func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 	name = dns.Fqdn(name)
 
 	if len(nameservers) == 0 {
@@ -35,11 +34,10 @@ func NewZone(name string, nameservers []GluedNS, signer Signer, mutator Mutator)
 	}
 
 	zone := &Zone{
-		Name:    name,
-		NS:      make([]GluedNS, len(nameservers)),
-		Signer:  signer,
-		Mutator: mutator,
-		Records: make(map[RecordKey]RecordSet),
+		Name:      name,
+		NS:        make([]GluedNS, len(nameservers)),
+		Callbacks: callbacks,
+		Records:   make(map[RecordKey]RecordSet),
 
 		SOA: &dns.SOA{
 			Hdr:     NewHeader(name, dns.TypeSOA),
@@ -67,7 +65,7 @@ func NewZone(name string, nameservers []GluedNS, signer Signer, mutator Mutator)
 	}
 
 	// Add the Keys
-	for _, dnskey := range signer.Keys() {
+	for _, dnskey := range callbacks.Keys() {
 		zone.AddRecord(dnskey)
 	}
 
@@ -98,7 +96,7 @@ func (z *Zone) DelegateTo(child *Zone) {
 		z.AddRecord(ns.A)
 		z.AddRecord(ns.NS)
 	}
-	for _, ds := range child.Signer.DelegatedSingers() {
+	for _, ds := range child.Callbacks.DelegatedSingers() {
 		z.AddRecord(ds)
 	}
 }
@@ -172,15 +170,15 @@ func (z *Zone) Query(qmsg *dns.Msg) (*dns.Msg, error) {
 
 	//---
 
-	rmsg = z.Mutator.PreSigning(rmsg)
+	rmsg = z.Callbacks.PreSigning(rmsg)
 
-	rmsg, err := z.Signer.Sign(rmsg)
+	rmsg, err := z.Callbacks.Sign(rmsg)
 	if err != nil {
 		return nil, err
 	}
 	rmsg.AuthenticatedData = true
 
-	rmsg = z.Mutator.PostSigning(rmsg)
+	rmsg = z.Callbacks.PostSigning(rmsg)
 
 	//---
 

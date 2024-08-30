@@ -26,7 +26,12 @@ func (t *InvalidRRSigSignature) Setup(ns *naughty.Nameserver) error {
 
 	name := dns.Fqdn(fmt.Sprintf("rrsig-signature-invalid.%s", ns.BaseZoneName))
 
-	zone := naughty.NewZone(name, ns.NSRecords, naughty.NewSignerAutogenSingleDefault(name), t)
+	callbacks := naughty.NewStandardCallbacks(naughty.NewSignerAutogenSingleDefault(name))
+
+	callbacks.PreSigning = t.PreSigning
+	callbacks.PostSigning = t.PostSigning
+
+	zone := naughty.NewZone(name, ns.NSRecords, callbacks)
 	ns.BaseZone.DelegateTo(zone)
 	ns.Zones[name] = zone
 
