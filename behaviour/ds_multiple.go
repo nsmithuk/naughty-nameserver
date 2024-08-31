@@ -3,8 +3,8 @@ package behaviour
 import (
 	"fmt"
 	"github.com/miekg/dns"
+	"github.com/nsmithuk/naughty-nameserver/naughty"
 	"log"
-	"naughty-nameserver/naughty"
 	"net"
 	"slices"
 )

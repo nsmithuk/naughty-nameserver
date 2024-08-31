@@ -4,11 +4,10 @@ import (
 	"crypto"
 	"fmt"
 	"github.com/miekg/dns"
+	"github.com/nsmithuk/naughty-nameserver/naughty"
 	"log"
-	"naughty-nameserver/naughty"
 	"net"
 	"slices"
-	"time"
 )
 
 type ValidInvalidRRSig string
@@ -37,12 +36,15 @@ func (t *ValidInvalidRRSig) Setup(ns *naughty.Nameserver) error {
 		msg2 := new(dns.Msg)
 
 		// If they're asking for the A record.
-		if msg.Question[0].Qtype == dns.TypeA {
+		if msg.Question[0].Qtype == dns.TypeA && len(msg.Answer) > 0 {
 			// The second signature will have expired.
-			msg2, err = naughty.SignMsg(signer2.Key(), signer2.Signer(), msg, t.SignRRSet)
+			msg2 = msg.Copy()
+			msg2.Answer[0].(*dns.A).A = net.ParseIP("192.0.2.58").To4()
+			msg2, err = naughty.SignMsg(signer2.Key(), signer2.Signer(), msg2, t.SignRRSet)
 			if err != nil {
 				return nil, err
 			}
+			msg2.Answer[0] = msg.Answer[0]
 		}
 
 		msg.Answer = slices.Concat(msg1.Answer, msg2.Answer)
@@ -73,7 +75,7 @@ func (t *ValidInvalidRRSig) Setup(ns *naughty.Nameserver) error {
 
 func (t *ValidInvalidRRSig) SignRRSet(dnskey *dns.DNSKEY, signer crypto.Signer, rrs []dns.RR, inception, expiration int64) (*dns.RRSIG, error) {
 	// Signs with an expired date.
-	inception = time.Now().Add(time.Hour * -48).Unix()
-	expiration = time.Now().Add(time.Hour * -24).Unix()
+	//inception = time.Now().Add(time.Hour * -48).Unix()
+	//expiration = time.Now().Add(time.Hour * -24).Unix()
 	return naughty.SignRRSet(dnskey, signer, rrs, inception, expiration)
 }

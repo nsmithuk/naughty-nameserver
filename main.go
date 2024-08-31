@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/miekg/dns"
+	"github.com/nsmithuk/naughty-nameserver/behaviour"
+	"github.com/nsmithuk/naughty-nameserver/naughty"
 	"log"
-	"naughty-nameserver/behaviour"
-	"naughty-nameserver/naughty"
 	"net"
 	"os"
 	"os/signal"

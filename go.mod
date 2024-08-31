@@ -1,4 +1,4 @@
-module naughty-nameserver
+module github.com/nsmithuk/naughty-nameserver
 
 go 1.23.0
 
