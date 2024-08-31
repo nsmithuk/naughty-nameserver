@@ -1,6 +1,6 @@
 # naughty-nameserver
 
-When a specific key algorithm is not mention the default of `ECDSA P-256 / SHA256` is used.
+When a specific key algorithm is not mention the default of `ECDSA P-256 SHA256` is used.
 
 ## Invalid Endpoints
 
@@ -11,7 +11,14 @@ We wouldn't catch the DS issue until a later stage.
 But also a DS can point at a ZSK. Maybe the point it that it poitns as a ZSK that wasn't used for signing?
 
 ### The DS record in the parent doesn't match any key
+```text
+test.incorrect-ds.naughty-nameserver.com
+```
 
+### No DS records are returned from the parent
+```text
+test.missing-ds.naughty-nameserver.com
+```
 
 ### RRSig Signature invalid with the wrong message
 The returned RRSig is generated using a different A RR than what is returned in the answer.
@@ -76,16 +83,17 @@ test.ed25519.naughty-nameserver.com
 test.two-valid-zsks.naughty-nameserver.com
 ```
 
-### Signed only using a ZSK
+### Signed only using a ZSK (flags = 256)
 ```text
 test.zsk-only.naughty-nameserver.com
 ```
 
-### Seven ed25519 CSKs with the exact same Flags, Protocol, Algorithm and Tag
-In this instance a validator should [try all keys](https://datatracker.ietf.org/doc/html/rfc4035#section-5.3.1) to determine which is the correct one.
-(Hint - it's the middle one :-)
+### Many DS records are returned from the parent, one being valid
+```text
+test.many-ds.naughty-nameserver.com
+```
 
-### DS hashed using SHA1
-### DS hashed using SHA256
-### DS hashed using SHA384
-### DS hashed using SHA512
+### Seven ed25519 CSKs with the exact same Flags, Protocol, Algorithm and Tag
+In this instance a validator should [try all keys](https://datatracker.ietf.org/doc/html/rfc4035#section-5.3.1) to 
+determine which is the correct one.
+(Hint - it's the middle one :-)

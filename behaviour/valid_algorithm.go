@@ -8,16 +8,7 @@ import (
 	"net"
 )
 
-/*
-AllValidAlgorithms covers 6 valid/working use cases, each signed with a CSK.
-
-To use: test.rsa-1024-sha1.<base-domain>
-To use: test.rsa-2048-sha256.<base-domain>
-To use: test.rsa-4096-sha512.<base-domain>
-To use: test.ecdsa-p256-sha256.<base-domain>
-To use: test.ecdsa-p384-sha384.<base-domain>
-To use: test.ed25519.<base-domain>
-*/
+// AllValidAlgorithms covers 6 valid/working use cases, each signed with a CSK.
 type AllValidAlgorithms struct {
 }
 

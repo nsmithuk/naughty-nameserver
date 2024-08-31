@@ -59,7 +59,10 @@ func NewSignerAutogenSingle(zone string, algorithm uint8, bits int) (*SignerAuto
 	}, nil
 }
 
-// SetDnsKeyFlag allows the DNSKEY flags to be amended.
+func (s *SignerAutogenSingle) SetHash(hash uint8) {
+	s.hash = hash
+}
+
 func (s *SignerAutogenSingle) SetDnsKeyFlag(flag uint16) {
 	s.key.Flags = flag
 }
