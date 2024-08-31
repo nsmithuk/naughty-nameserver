@@ -18,6 +18,8 @@ import (
 //------------------------------------------------------
 // KSK From io.Reader, with generated ZSK.
 
+// TODO: This can likely be composed of two other Single Key signers now.
+
 type IoReaderSigner struct {
 	zsk *dns.DNSKEY
 	ksk *dns.DNSKEY
@@ -75,8 +77,6 @@ func NewIoReaderSigner(zone string, publicReader, secretReader io.Reader) (Signe
 	if err != nil {
 		return nil, err
 	}
-
-	signer.kSigner, _ = secret.(*ecdsa.PrivateKey)
 
 	switch s := secret.(type) {
 	case *ecdsa.PrivateKey:

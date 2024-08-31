@@ -8,6 +8,7 @@ When a specific key algorithm is not mention the default of `ECDSA P-256 / SHA25
 Is this different to the above?
 I think so as we'd catch a missing KSK at the sig checking stage.
 We wouldn't catch the DS issue until a later stage.
+But also a DS can point at a ZSK. Maybe the point it that it poitns as a ZSK that wasn't used for signing?
 
 ### The DS record in the parent doesn't match any key
 
@@ -79,6 +80,10 @@ test.two-valid-zsks.naughty-nameserver.com
 ```text
 test.zsk-only.naughty-nameserver.com
 ```
+
+### Seven ed25519 CSKs with the exact same Flags, Protocol, Algorithm and Tag
+In this instance a validator should [try all keys](https://datatracker.ietf.org/doc/html/rfc4035#section-5.3.1) to determine which is the correct one.
+(Hint - it's the middle one :-)
 
 ### DS hashed using SHA1
 ### DS hashed using SHA256
