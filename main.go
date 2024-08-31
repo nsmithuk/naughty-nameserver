@@ -6,10 +6,16 @@ import (
 	"log"
 	"naughty-nameserver/behaviour"
 	"naughty-nameserver/naughty"
+	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 )
+
+/*
+This starts a basic Naughty DNS Server on port 53.
+*/
 
 var nameserver *naughty.Nameserver
 
@@ -19,15 +25,21 @@ type BehaviourFactory interface {
 
 func main() {
 	domain := dns.Fqdn("naughty-nameserver.com.")
-	ns1 := "35.178.186.142"
-	ns2 := "35.178.186.142"
+	ns1 := "35.178.119.145"
+	ns2 := "35.178.119.145"
 
 	nameserver = naughty.NewNameserver(domain, []string{ns1, ns2})
 
 	behaviours := map[string]BehaviourFactory{
-		"all-valid":     new(behaviour.AllValidAlgorithms),
-		"invalid-rrsig": new(behaviour.InvalidRRSig),
-		"zsk-only":      new(behaviour.ZskOnly),
+		"all-valid":           new(behaviour.AllValidAlgorithms),
+		"invalid-rrsig":       new(behaviour.InvalidRRSigSignature),
+		"zsk-only":            new(behaviour.ZskOnly),
+		"two-valid-zsks":      new(behaviour.TwoValidZsks),
+		"invalid-rrsig-dates": new(behaviour.InvalidRRSigDates),
+		"clashing-keys":       new(behaviour.ClashingKeys),
+		"incorrect-ds":        new(behaviour.IncorrectDS),
+		"missing-ds":          new(behaviour.MissingDS),
+		"multiple-ds":         new(behaviour.MultipleDS),
 	}
 
 	for _, b := range behaviours {
@@ -63,6 +75,24 @@ func startDNSServer(network, address string) {
 }
 
 func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
+	var a net.IP
+	var port string
+
+	if ip, ok := w.RemoteAddr().(*net.UDPAddr); ok {
+		port = "Port: " + strconv.Itoa(ip.Port) + " (udp)"
+		a = ip.IP
+	}
+	if ip, ok := w.RemoteAddr().(*net.TCPAddr); ok {
+		port = "Port: " + strconv.Itoa(ip.Port) + " (tcp)"
+		a = ip.IP
+	}
+
+	if a != nil {
+		log.Printf("Request from %s. %s\n", a.String(), port)
+	}
+
+	//---
+
 	msg, err := nameserver.Query(r)
 	if err != nil {
 		log.Printf("Failed to generate response: %v\n", err)
