@@ -50,9 +50,6 @@ The expiration time is set one hour into the past.
 test.rrsig-expiration-invalid.naughty-nameserver.com
 ```
 
-### Two RRSigs are returned, but only one is valid
-
-
 ## Valid Endpoints
 
 ### CSK Signed with 1024 RSA / SHA1
@@ -104,3 +101,8 @@ test.many-ds.naughty-nameserver.com
 In this instance a validator should [try all keys](https://datatracker.ietf.org/doc/html/rfc4035#section-5.3.1) to 
 determine which is the correct one.
 (Hint - it's the middle one :-)
+
+### Two RRSigs are returned, but only one is valid
+```text
+test.one-valid-one-invalid-rrsig.naughty-nameserver.com
+```
