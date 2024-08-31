@@ -41,6 +41,7 @@ func main() {
 		"missing-ds":          new(behaviour.MissingDS),
 		"multiple-ds":         new(behaviour.MultipleDS),
 		"missmatch-ds":        new(behaviour.MissmatchDS),
+		"zsk-ds":              new(behaviour.ZskDS),
 	}
 
 	for _, b := range behaviours {

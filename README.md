@@ -4,11 +4,13 @@ When a specific key algorithm is not mention the default of `ECDSA P-256 SHA256`
 
 ## Invalid Endpoints
 
-### The DS record in the parent is for the ZSK, not the KSK key
-Is this different to the above?
-I think so as we'd catch a missing KSK at the sig checking stage.
-We wouldn't catch the DS issue until a later stage.
-But also a DS can point at a ZSK. Maybe the point it that it poitns as a ZSK that wasn't used for signing?
+### DS miss-match with the CSK used to sign the zone's records
+This zone returns two CSK DNSKEYs. One signs all the records, and the other aligns with the zone's DS record.
+This means that there is no trust chain as although the DS record maps to a returned key, that key was not
+used to sign any of the record sets.
+```text
+test.missmatch-ds.naughty-nameserver.com
+```
 
 ### The DS record in the parent doesn't match any key
 ```text
@@ -18,6 +20,11 @@ test.incorrect-ds.naughty-nameserver.com
 ### No DS records are returned from the parent
 ```text
 test.missing-ds.naughty-nameserver.com
+```
+
+## DS record returned is for ZSK, not the KSK
+```text
+test.zsk-ds.naughty-nameserver.com
 ```
 
 ### RRSig Signature invalid with the wrong message

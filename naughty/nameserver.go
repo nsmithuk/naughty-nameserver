@@ -81,6 +81,7 @@ func (ns *Nameserver) Query(qmsg *dns.Msg) (*dns.Msg, error) {
 	for zoneName := range IterateDomainHierarchy(name) {
 
 		// Is there is a zone with this name...
+		// Note that this map does not change once the server is setup, thus we don't need and thread-safe locking here.
 		if zone, ok := ns.Zones[zoneName]; ok {
 			rmsg, err := zone.Query(qmsg)
 
