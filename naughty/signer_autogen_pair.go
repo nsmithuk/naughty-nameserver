@@ -4,9 +4,6 @@ import (
 	"github.com/miekg/dns"
 )
 
-//------------------------------------------------------
-// KSK From io.Reader, with generated ZSK.
-
 type SignerAutogenPair struct {
 	ksk  *SignerAutogenSingle
 	zsk  *SignerAutogenSingle
@@ -50,27 +47,4 @@ func (s *SignerAutogenPair) Sign(msg *dns.Msg) (*dns.Msg, error) {
 		return s.ksk.Sign(msg)
 	}
 	return s.zsk.Sign(msg)
-
-	//for typ, rrset := range GroupRecordsByType(msg.Answer) {
-	//	rrsig, err := s.signSet(rrset, typ)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	msg.Answer = append(msg.Answer, rrsig)
-	//}
-	//for typ, rrset := range GroupRecordsByType(msg.Ns) {
-	//	rrsig, err := s.signSet(rrset, typ)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	msg.Ns = append(msg.Ns, rrsig)
-	//}
-	//return msg, nil
 }
-
-//func (s *SignerAutogenPair) signSet(rrset []dns.RR, rrtype uint16) (*dns.RRSIG, error) {
-//	if rrtype == dns.TypeDNSKEY {
-//		return s.ksk.signSet(rrset)
-//	}
-//	return s.zsk.signSet(rrset)
-//}

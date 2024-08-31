@@ -40,6 +40,7 @@ func main() {
 		"incorrect-ds":        new(behaviour.IncorrectDS),
 		"missing-ds":          new(behaviour.MissingDS),
 		"multiple-ds":         new(behaviour.MultipleDS),
+		"missmatch-ds":        new(behaviour.MissmatchDS),
 	}
 
 	for _, b := range behaviours {
@@ -47,10 +48,6 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-
-	ns := nameserver
-	fmt.Println(ns.RootDelegatedSingers()[0].String())
-	fmt.Println(ns.BaseDelegatedSingers()[0].String())
 
 	go startDNSServer("udp", ":53")
 	go startDNSServer("tcp", ":53")

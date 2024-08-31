@@ -110,13 +110,13 @@ func (ns *Nameserver) BuildInitialZones() {
 		var signer Signer
 		switch name {
 		case ns.BaseZoneName:
-			signer, _ = NewIoReaderSigner(
+			signer, _ = NewSignerReaderPair(
 				name,
 				strings.NewReader(basePublic),
 				strings.NewReader(baseSecret),
 			)
 		case ".":
-			signer, _ = NewIoReaderSigner(
+			signer, _ = NewSignerReaderPair(
 				name,
 				strings.NewReader(rootPublic),
 				strings.NewReader(rootSecret),
@@ -139,6 +139,13 @@ func (ns *Nameserver) BuildInitialZones() {
 			ns.RootZone = ns.Zones[name]
 		} else if name == ns.BaseZoneName {
 			ns.BaseZone = ns.Zones[name]
+			fmt.Println("--------------------------------------")
+			fmt.Printf("KSK Details for %s\n", name)
+			for _, key := range signer.Keys() {
+				fmt.Printf("Key:\t%d:\t%s\n", key.KeyTag(), key.String())
+			}
+			fmt.Printf("DS:\t%s\n", signer.DelegatedSingers()[0])
+			fmt.Println("--------------------------------------")
 		}
 
 		ns.Zones[name].AddRecord(&dns.A{
