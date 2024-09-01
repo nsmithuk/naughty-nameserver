@@ -1,5 +1,12 @@
 # naughty-nameserver
 
+> [!IMPORTANT]
+> Naughty Nameserver is not intended for use as a general-purpose nameserver. 
+> It is intentionally designed with security limitations. Critical private keys are deliberately 
+> included within the codebase, making them publicly accessible. This approach facilitates deterministic 
+> testing but exposes the server to vulnerabilities such as cache poisoning and other attack vectors that 
+> DNSSEC typically protects against. Use this server only in controlled testing scenarios.
+
 When a specific key algorithm is not mention the default of `ECDSA P-256 SHA256` is used.
 
 ## Invalid Endpoints
