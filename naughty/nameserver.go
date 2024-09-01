@@ -52,9 +52,18 @@ func NewNameserver(baseZoneName string, nsIPv4s []string) *Nameserver {
 		Zones:        make(map[string]*Zone),
 	}
 
-	server.BuildInitialZones()
+	server.buildInitialZones()
 
 	return server
+}
+
+func (ns *Nameserver) SetupBehaviours(behaviours map[string]BehaviourFactory) error {
+	for _, b := range behaviours {
+		if err := b.Setup(ns); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (ns *Nameserver) RootDelegatedSingers() []*dns.DS {
@@ -71,10 +80,10 @@ func (ns *Nameserver) Query(qmsg *dns.Msg) (*dns.Msg, error) {
 	/*
 		We want to find the most specific zone for the Question.
 
-		Break the name into labels, then loops through...
-		deep.invalid.naughty-dns.com.
-		invalid.naughty-dns.com.
-		naughty-dns.com.
+		Break the name into labels, then loops through and find the first match. For example:
+		deep.invalid.naughty-nameserver.com.
+		invalid.naughty-nameserver.com.
+		naughty-nameserver.com.
 		com.
 		.
 	*/
@@ -91,11 +100,11 @@ func (ns *Nameserver) Query(qmsg *dns.Msg) (*dns.Msg, error) {
 			}
 
 			// Else we stay in the loop as a parent may have an answer.
-			// This is especially the case for DS records.
+			// This is the case for DS records. for example.
 		}
 	}
 
-	// Say we can't help...
+	// Then not found.
 	rmsg := new(dns.Msg)
 	rmsg.SetReply(qmsg)
 	rmsg.Authoritative = false
@@ -105,7 +114,16 @@ func (ns *Nameserver) Query(qmsg *dns.Msg) (*dns.Msg, error) {
 	return rmsg, fmt.Errorf("no response found for %s", name)
 }
 
-func (ns *Nameserver) BuildInitialZones() {
+func (ns *Nameserver) buildInitialZones() {
+	/*
+		Creates the zone for the base domain. For example: naughy-nameserver.com.
+
+		Also creates a zone for each label down to, and including, the root zone.
+		So with the example naughy-nameserver.com., the following zoes are created (and liked with NS deligation and DS records).
+			- naughy-nameserver.com.
+			- com.
+			- .
+	*/
 	var last *Zone
 	for name := range IterateDomainHierarchy(ns.BaseZoneName) {
 		var signer Signer
@@ -138,15 +156,22 @@ func (ns *Nameserver) BuildInitialZones() {
 				ns.Zones[name].AddRecord(ds)
 			}
 			ns.RootZone = ns.Zones[name]
+			Log.Debugf("--------------------------------------\n")
+			Log.Debugf("Root Details for %s\n", name)
+			for _, key := range signer.Keys() {
+				Log.Debugf("Key:\t%s (KeyTag: %d)\n", key.String(), key.KeyTag())
+			}
+			Log.Debugf("DS:\t%s\n", signer.DelegatedSingers()[0])
+			Log.Debugf("--------------------------------------\n")
 		} else if name == ns.BaseZoneName {
 			ns.BaseZone = ns.Zones[name]
-			fmt.Println("--------------------------------------")
-			fmt.Printf("KSK Details for %s\n", name)
+			Log.Infof("--------------------------------------\n")
+			Log.Infof("KSK Details for %s\n", name)
 			for _, key := range signer.Keys() {
-				fmt.Printf("Key:\t%d:\t%s\n", key.KeyTag(), key.String())
+				Log.Infof("Key:\t%s (KeyTag: %d)\n", key.String(), key.KeyTag())
 			}
-			fmt.Printf("DS:\t%s\n", signer.DelegatedSingers()[0])
-			fmt.Println("--------------------------------------")
+			Log.Infof("DS:\t%s\n", signer.DelegatedSingers()[0])
+			Log.Infof("--------------------------------------\n")
 		}
 
 		ns.Zones[name].AddRecord(&dns.A{

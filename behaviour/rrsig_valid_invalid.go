@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/miekg/dns"
 	"github.com/nsmithuk/naughty-nameserver/naughty"
-	"log"
 	"net"
 	"slices"
 )
@@ -68,7 +67,7 @@ func (t *ValidInvalidRRSig) Setup(ns *naughty.Nameserver) error {
 	}
 	zone.AddRecord(a)
 
-	log.Printf("Valid record added: %s\n", a.Header().Name)
+	naughty.Log.Infof(logFmtValid, a.Header().Name)
 
 	return nil
 }

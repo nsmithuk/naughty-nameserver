@@ -30,25 +30,9 @@ func main() {
 
 	nameserver = naughty.NewNameserver(domain, []string{ns1, ns2})
 
-	behaviours := map[string]BehaviourFactory{
-		"all-valid":             new(behaviour.AllValidAlgorithms),
-		"invalid-rrsig":         new(behaviour.InvalidRRSigSignature),
-		"zsk-only":              new(behaviour.ZskOnly),
-		"two-valid-zsks":        new(behaviour.TwoValidZsks),
-		"invalid-rrsig-dates":   new(behaviour.InvalidRRSigDates),
-		"clashing-keys":         new(behaviour.ClashingKeys),
-		"incorrect-ds":          new(behaviour.IncorrectDS),
-		"missing-ds":            new(behaviour.MissingDS),
-		"multiple-ds":           new(behaviour.MultipleDS),
-		"missmatch-ds":          new(behaviour.MissmatchDS),
-		"zsk-ds":                new(behaviour.ZskDS),
-		"one-valid-one-invalid": new(behaviour.ValidInvalidRRSig),
-	}
-
-	for _, b := range behaviours {
-		if err := b.Setup(nameserver); err != nil {
-			log.Fatal(err)
-		}
+	err := nameserver.SetupBehaviours(behaviour.GetAllBehaviours())
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	go startDNSServer("udp", ":53")
