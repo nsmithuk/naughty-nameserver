@@ -32,6 +32,55 @@ All test domains are prefixed with the label `test.`. They are all designed to r
 with the IP address `192.0.2.53`. In the case of the lookup being performed via a DNSSEC aware resolver, then
 this A record should _not_ be returned for domains that are designed to return an invalid response.
 
+An example *valid* response will look something like:
+```text
+dig @1.1.1.1 test.naughty-nameserver.com. +dnssec
+
+; <<>> DiG 9.10.6 <<>> @1.1.1.1 test.naughty-nameserver.com. +dnssec
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 54057
+;; flags: qr rd ra ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags: do; udp: 1232
+;; QUESTION SECTION:
+;test.naughty-nameserver.com.	IN	A
+
+;; ANSWER SECTION:
+test.naughty-nameserver.com. 60	IN	A	192.0.2.53
+test.naughty-nameserver.com. 60	IN	RRSIG	A 13 3 300 20240902140751 20240831140751 25649 naughty-nameserver.com. AToTP/lo9uP/Yj+can2BwBYapCnvZrpqTzLtc1FtRg6gDExJa2xbXrtP 0yVQK72KAbZ7qVUzwgz9xS6+yGKTGQ==
+
+;; Query time: 16 msec
+;; SERVER: 1.1.1.1#53(1.1.1.1)
+;; WHEN: Sun Sep 01 15:07:51 BST 2024
+;; MSG SIZE  rcvd: 190
+```
+
+An example *invalid* response will look something like:
+```text
+dig @1.1.1.1 test.rrsig-signature-invalid.naughty-nameserver.com. +dnssec
+
+; <<>> DiG 9.10.6 <<>> @1.1.1.1 test.rrsig-signature-invalid.naughty-nameserver.com. +dnssec
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 52689
+;; flags: qr rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags: do; udp: 1232
+; OPT=15: 00 06 66 61 69 6c 65 64 20 74 6f 20 76 65 72 69 66 79 20 74 65 73 74 2e 72 72 73 69 67 2d 73 69 67 6e 61 74 75 72 65 2d 69 6e 76 61 6c 69 64 2e 6e 61 75 67 68 74 79 2d 6e 61 6d 65 73 65 72 76 65 72 2e 63 6f 6d 2e 20 41 3a 20 75 73 69 6e 67 20 44 4e 53 4b 45 59 20 69 64 73 20 3d 20 5b 33 32 32 38 5d ("..failed to verify test.rrsig-signature-invalid.naughty-nameserver.com. A: using DNSKEY ids = [3228]")
+;; QUESTION SECTION:
+;test.rrsig-signature-invalid.naughty-nameserver.com. IN	A
+
+;; Query time: 53 msec
+;; SERVER: 1.1.1.1#53(1.1.1.1)
+;; WHEN: Sun Sep 01 15:08:48 BST 2024
+;; MSG SIZE  rcvd: 184
+```
+
 Note - when a specific key algorithm is not mentioned below, the default of `ECDSA P-256 SHA256` is used.
 
 ## Invalid Domains
