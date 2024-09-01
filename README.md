@@ -18,6 +18,7 @@ Naughty Nameserver can be integrated into Go-based DNSSEC validator unit tests,
 especially when using [miekg/dns](https://github.com/miekg). It provides a mock of the DNS hierarchy,
 including the root zone, allowing you to test full trust chains using a mocked trust anchors.
 
+
 > [!CAUTION]
 > Naughty Nameserver is not intended for use as a general-purpose nameserver. 
 > It is intentionally designed with security limitations. Critical private keys are deliberately 
@@ -25,11 +26,15 @@ including the root zone, allowing you to test full trust chains using a mocked t
 > testing (where needed) but exposes the server to vulnerabilities such as cache poisoning and other attack vectors that 
 > DNSSEC typically protects against. Use this server only in controlled testing scenarios.
 
-When a specific key algorithm is not mention the default of `ECDSA P-256 SHA256` is used.
-
 # Usage
 
-## Invalid Endpoints
+All test domains are prefixed with the label `test.`. They are all designed to return a single A record
+with the IP address `192.0.2.53`. In the case of the lookup being performed via a DNSSEC aware resolver, then
+this A record should _not_ be returned for domains that are designed to return an invalid response.
+
+Note - when a specific key algorithm is not mentioned below, the default of `ECDSA P-256 SHA256` is used.
+
+## Invalid Domains
 
 ### DS miss-match with the CSK used to sign the zone's records
 This zone returns two CSK DNSKEYs. One signs all the records, and the other aligns with the zone's DS record.
@@ -73,7 +78,7 @@ The expiration time is set one hour into the past.
 test.rrsig-expiration-invalid.naughty-nameserver.com
 ```
 
-## Valid Endpoints
+## Valid Domains
 
 ### CSK Signed with 1024 RSA / SHA1
 ```text
