@@ -34,10 +34,16 @@ func NewNameserver(baseZoneName string, nsIPv4s []string) *Nameserver {
 	records := make([]GluedNS, len(nsIPv4s))
 	for i, ip := range nsIPv4s {
 		host := fmt.Sprintf("ns%d.%s", i+1, baseZoneName)
+
+		addr := net.ParseIP(ip).To4()
+		if addr == nil {
+			panic(fmt.Sprintf("invalid ip address %s", ip))
+		}
+
 		records[i] = GluedNS{
 			A: &dns.A{
 				Hdr: NewHeader(host, dns.TypeA),
-				A:   net.ParseIP(ip).To4(),
+				A:   addr,
 			},
 			NS: &dns.NS{
 				Hdr: NewHeader(host, dns.TypeNS),
@@ -57,7 +63,7 @@ func NewNameserver(baseZoneName string, nsIPv4s []string) *Nameserver {
 	return server
 }
 
-func (ns *Nameserver) SetupBehaviours(behaviours map[string]BehaviourFactory) error {
+func (ns *Nameserver) AddBehaviours(behaviours map[string]BehaviourFactory) error {
 	for _, b := range behaviours {
 		if err := b.Setup(ns); err != nil {
 			return err

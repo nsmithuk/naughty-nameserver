@@ -58,3 +58,13 @@ func GroupRecordsByType(rrset []dns.RR) map[uint16][]dns.RR {
 	}
 	return results
 }
+
+// Do Has the DO bit been set on the question
+func Do(msg *dns.Msg) bool {
+	for _, extra := range msg.Extra {
+		if opt, ok := extra.(*dns.OPT); ok {
+			return opt.Do()
+		}
+	}
+	return false
+}

@@ -19,10 +19,6 @@ This starts a basic Naughty DNS Server on port 53.
 
 var nameserver *naughty.Nameserver
 
-type BehaviourFactory interface {
-	Setup(*naughty.Nameserver) error
-}
-
 func main() {
 	domain := dns.Fqdn("naughty-nameserver.com.")
 	ns1 := "35.178.119.145"
@@ -30,7 +26,7 @@ func main() {
 
 	nameserver = naughty.NewNameserver(domain, []string{ns1, ns2})
 
-	err := nameserver.SetupBehaviours(behaviour.GetAllBehaviours())
+	err := nameserver.AddBehaviours(behaviour.GetAllBehaviours())
 	if err != nil {
 		log.Fatal(err)
 	}

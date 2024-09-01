@@ -172,11 +172,14 @@ func (z *Zone) Query(qmsg *dns.Msg) (*dns.Msg, error) {
 
 	rmsg = z.Callbacks.PreSigning(rmsg)
 
-	rmsg, err := z.Callbacks.Sign(rmsg)
-	if err != nil {
-		return nil, err
+	if Do(qmsg) {
+		var err error
+		rmsg, err = z.Callbacks.Sign(rmsg)
+		if err != nil {
+			return nil, err
+		}
+		rmsg.AuthenticatedData = true
 	}
-	rmsg.AuthenticatedData = true
 
 	rmsg = z.Callbacks.PostSigning(rmsg)
 
