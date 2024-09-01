@@ -1,6 +1,6 @@
 # naughty-nameserver
 
-> [!IMPORTANT]
+> [!CAUTION]
 > Naughty Nameserver is not intended for use as a general-purpose nameserver. 
 > It is intentionally designed with security limitations. Critical private keys are deliberately 
 > included within the codebase, making them publicly accessible. This approach facilitates deterministic 
