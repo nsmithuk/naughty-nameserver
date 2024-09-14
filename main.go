@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/miekg/dns"
+	"github.com/nsmithuk/naughty-nameserver/behaviour"
 	"github.com/nsmithuk/naughty-nameserver/naughty"
 	"log"
 	"net"
@@ -18,6 +19,21 @@ This starts a basic Naughty DNS Server on port 53.
 
 var nameserver *naughty.Nameserver
 
+func init() {
+	naughty.Info = func(s string) {
+		fmt.Print(s)
+	}
+	naughty.Debug = func(s string) {
+		fmt.Print(s)
+	}
+	naughty.Warn = func(s string) {
+		fmt.Print(s)
+	}
+	naughty.Query = func(s string) {
+		fmt.Print(s)
+	}
+}
+
 func main() {
 	domain := dns.Fqdn("naughty-nameserver.com.")
 	ns1 := "35.178.119.145"
@@ -25,10 +41,10 @@ func main() {
 
 	nameserver = naughty.NewNameserver(domain, []string{ns1, ns2})
 
-	//err := nameserver.AddBehaviours(behaviour.GetAllBehaviours())
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
+	err := nameserver.AddBehaviours(behaviour.GetAllBehaviours())
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	go startDNSServer("udp", ":53")
 	go startDNSServer("tcp", ":53")

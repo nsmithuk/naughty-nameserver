@@ -36,7 +36,7 @@ func (t *MultipleDS) Setup(ns *naughty.Nameserver) error {
 	}
 	zone.AddRecord(a)
 
-	naughty.Log.Infof(logFmtValid, a.Header().Name)
+	naughty.Info(fmt.Sprintf(logFmtValid, a.Header().Name))
 
 	return nil
 

@@ -164,22 +164,22 @@ func (ns *Nameserver) buildInitialZones() {
 				ns.Zones[name].AddRecord(ds)
 			}
 			ns.RootZone = ns.Zones[name]
-			Log.Debugf("--------------------------------------\n")
-			Log.Debugf("Root Details for %s\n", name)
+			Debug(fmt.Sprintf("--------------------------------------\n"))
+			Debug(fmt.Sprintf("Root Details for %s\n", name))
 			for _, key := range signer.Keys() {
-				Log.Debugf("Key:\t%s (KeyTag: %d)\n", key.String(), key.KeyTag())
+				Debug(fmt.Sprintf("Key:\t%s (KeyTag: %d)\n", key.String(), key.KeyTag()))
 			}
-			Log.Debugf("DS:\t%s\n", signer.DelegatedSingers()[0])
-			Log.Debugf("--------------------------------------\n")
+			Debug(fmt.Sprintf("DS:\t%s\n", signer.DelegatedSingers()[0]))
+			Debug(fmt.Sprintf("--------------------------------------\n"))
 		} else if name == ns.BaseZoneName {
 			ns.BaseZone = ns.Zones[name]
-			Log.Infof("--------------------------------------\n")
-			Log.Infof("KSK Details for %s\n", name)
+			Info(fmt.Sprintf("--------------------------------------\n"))
+			Info(fmt.Sprintf("KSK Details for %s\n", name))
 			for _, key := range signer.Keys() {
-				Log.Infof("Key:\t%s (KeyTag: %d)\n", key.String(), key.KeyTag())
+				Info(fmt.Sprintf("Key:\t%s (KeyTag: %d)\n", key.String(), key.KeyTag()))
 			}
-			Log.Infof("DS:\t%s\n", signer.DelegatedSingers()[0])
-			Log.Infof("--------------------------------------\n")
+			Info(fmt.Sprintf("DS:\t%s\n", signer.DelegatedSingers()[0]))
+			Info(fmt.Sprintf("--------------------------------------\n"))
 
 			//---
 			// External test

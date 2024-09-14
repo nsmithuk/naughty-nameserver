@@ -52,7 +52,7 @@ func (t *InvalidRRSigSignature) Setup(ns *naughty.Nameserver) error {
 	}
 	zone.AddRecord(t.answer)
 
-	naughty.Log.Infof(logFmtInvalid, t.answer.Header().Name)
+	naughty.Info(fmt.Sprintf(logFmtInvalid, t.answer.Header().Name))
 
 	return nil
 }
