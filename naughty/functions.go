@@ -6,30 +6,27 @@ import (
 	"strings"
 )
 
-func IterateDomainHierarchy(domain string) iter.Seq[string] {
+func IterateDownDomainHierarchy(domain string) iter.Seq[string] {
 	return func(yield func(string) bool) {
 		if domain == "" {
 			return
 		}
 
-		domain = strings.TrimSuffix(domain, ".")
-		labels := dns.SplitDomainName(domain)
+		domain = fqdn(domain)
 
-		for i := 0; i <= len(labels); i++ {
-			var result string
-			if i == len(labels) {
-				// The root is a special case.
-				result = "."
-			} else {
-				// Join the last i labels.
-				result = strings.Join(labels[i:], ".") + "."
-			}
-			if !yield(result) {
+		// We add an index as we want root (.) returned at the end.
+		indexes := append(dns.Split(domain), len(domain)-1)
+
+		for _, i := range indexes {
+			if !yield(domain[i:]) {
 				return
 			}
 		}
-
 	}
+}
+
+func fqdn(name string) string {
+	return dns.Fqdn(strings.ToLower(name))
 }
 
 func NewHeader(name string, rrtype uint16) dns.RR_Header {

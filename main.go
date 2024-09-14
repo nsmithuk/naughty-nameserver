@@ -87,7 +87,7 @@ func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 	//---
 
-	msg, err := nameserver.Query(r)
+	msg, err := nameserver.Exchange(r)
 	if err != nil {
 		log.Printf("Failed to generate response: %v\n", err)
 	}

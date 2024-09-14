@@ -80,8 +80,8 @@ func (ns *Nameserver) BaseDelegatedSingers() []*dns.DS {
 	return ns.BaseZone.Callbacks.DelegatedSingers()
 }
 
-func (ns *Nameserver) Query(qmsg *dns.Msg) (*dns.Msg, error) {
-	name := strings.ToLower(dns.Fqdn(qmsg.Question[0].Name))
+func (ns *Nameserver) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
+	name := fqdn(qmsg.Question[0].Name)
 
 	/*
 		We want to find the most specific zone for the Question.
@@ -93,14 +93,14 @@ func (ns *Nameserver) Query(qmsg *dns.Msg) (*dns.Msg, error) {
 		com.
 		.
 	*/
-	for zoneName := range IterateDomainHierarchy(name) {
+	for zoneName := range IterateDownDomainHierarchy(name) {
 
 		// TODO: catch DS lookups here?
 
 		// Is there is a zone with this name...
-		// Note that this map does not change once the server is setup, thus we don't need and thread-safe locking here.
+		// Note that this map does not change once the server is setup, thus we don't need any thread-safe locking here.
 		if zone, ok := ns.Zones[zoneName]; ok {
-			rmsg, err := zone.Query(qmsg)
+			rmsg, err := zone.Exchange(qmsg)
 
 			// If one, or both, are not nil, return.
 			if rmsg != nil || err != nil {
@@ -133,7 +133,7 @@ func (ns *Nameserver) buildInitialZones() {
 			- .
 	*/
 	var last *Zone
-	for name := range IterateDomainHierarchy(ns.BaseZoneName) {
+	for name := range IterateDownDomainHierarchy(ns.BaseZoneName) {
 		var signer Signer
 		switch name {
 		case ns.BaseZoneName:

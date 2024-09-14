@@ -14,7 +14,9 @@ type Zone struct {
 	NS  []GluedNS
 	SOA *dns.SOA
 
-	Records map[RecordKey]RecordSet
+	//Records map[RecordKey]RecordSet
+
+	records records
 }
 
 type RecordKey struct {
@@ -22,7 +24,10 @@ type RecordKey struct {
 	typ  uint16
 }
 
-type RecordSet []dns.RR
+//type records struct {
+//	domain  string
+//	entries map[uint16]RecordSet
+//}
 
 //---
 
@@ -37,7 +42,8 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 		Name:      name,
 		NS:        make([]GluedNS, len(nameservers)),
 		Callbacks: callbacks,
-		Records:   make(map[RecordKey]RecordSet),
+		//Records:   make(map[RecordKey]RecordSet),
+		records: records{},
 
 		SOA: &dns.SOA{
 			Hdr:     NewHeader(name, dns.TypeSOA),
@@ -76,14 +82,7 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 }
 
 func (z *Zone) AddRecord(r dns.RR) {
-	k := RecordKey{r.Header().Name, r.Header().Rrtype}
-
-	if _, ok := z.Records[k]; !ok {
-		z.Records[k] = make(RecordSet, 0)
-	}
-
-	z.Records[k] = append(z.Records[k], r)
-	z.Records[k] = dns.Dedup(z.Records[k], nil)
+	z.records.add(r)
 }
 
 func (z *Zone) AddRecords(r []dns.RR) {
@@ -102,9 +101,12 @@ func (z *Zone) DelegateTo(child *Zone) {
 	}
 }
 
-func (z *Zone) Query(qmsg *dns.Msg) (*dns.Msg, error) {
+func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 	// We lower-case the name here to work with DNS 0x20 encoding.
 	q := RecordKey{strings.ToLower(qmsg.Question[0].Name), qmsg.Question[0].Qtype}
+
+	qname := fqdn(qmsg.Question[0].Name)
+	qtype := qmsg.Question[0].Qtype
 
 	rmsg := new(dns.Msg)
 	rmsg.SetReply(qmsg)
@@ -132,38 +134,39 @@ func (z *Zone) Query(qmsg *dns.Msg) (*dns.Msg, error) {
 		case dns.TypeDS:
 			// We should not be returning a DS record for ourself.
 			// We'll make an exception for the root zone. // TODO: should we?
-			if records, ok := z.Records[q]; ok && q.Name == "." {
+			if rrset := z.records.get(qname, qtype); rrset != nil && q.Name == "." {
 				rmsg.Authoritative = true
-				rmsg.Answer = append(rmsg.Answer, records...)
+				rmsg.Answer = append(rmsg.Answer, rrset...)
 			}
 
 			// Returning nil, nil will pass the request up to the parent zone.
 			return nil, nil
 		default:
-			if records, ok := z.Records[q]; ok {
-				rmsg.Answer = append(rmsg.Answer, records...)
+			if rrset := z.records.get(qname, qtype); rrset != nil {
+				rmsg.Answer = append(rmsg.Answer, rrset...)
 			}
 		}
 
 	} else {
 		// Check if we have an exact match to the query
-		if records, ok := z.Records[q]; ok {
+		//if records, ok := z.Records[q]; ok {
+		if rrset := z.records.get(qname, qtype); rrset != nil {
 			if q.typ == dns.TypeNS {
 				// Then we're delegating
-				rmsg.Ns = append(rmsg.Ns, records...)
+				rmsg.Ns = append(rmsg.Ns, rrset...)
 			} else {
 				rmsg.Authoritative = true
-				rmsg.Answer = append(rmsg.Answer, records...)
+				rmsg.Answer = append(rmsg.Answer, rrset...)
 			}
 		} else {
 			// Else we might be able to delegate them in the right direction
 			// We need to all zones from the FQDN in the question, down to this zone.
-			for name := range IterateDomainHierarchy(q.Name) {
+			for name := range IterateDownDomainHierarchy(q.Name) {
 				if !dns.IsSubDomain(z.Name, name) {
 					// Break if we're now looking in a parent to this zone.
 					break
-				} else if records, ok = z.Records[RecordKey{name, dns.TypeNS}]; ok {
-					rmsg.Ns = append(rmsg.Ns, records...)
+				} else if rrset := z.records.get(qname, dns.TypeNS); rrset != nil {
+					rmsg.Ns = append(rmsg.Ns, rrset...)
 					break
 				}
 			}
@@ -182,10 +185,10 @@ func (z *Zone) Query(qmsg *dns.Msg) (*dns.Msg, error) {
 		glue := make([]dns.RR, 0)
 		for _, rr := range append(rmsg.Answer, rmsg.Ns...) {
 			if ns, ok := rr.(*dns.NS); ok {
-				if records, ok := z.Records[RecordKey{ns.Ns, dns.TypeA}]; ok {
-					glue = append(glue, records...)
-				} else if records, ok := z.Records[RecordKey{ns.Ns, dns.TypeAAAA}]; ok {
-					glue = append(glue, records...)
+				if rrset := z.records.get(ns.Ns, dns.TypeA); rrset != nil {
+					glue = append(glue, rrset...)
+				} else if rrset := z.records.get(ns.Ns, dns.TypeAAAA); rrset != nil {
+					glue = append(glue, rrset...)
 				}
 			}
 		}
@@ -194,66 +197,6 @@ func (z *Zone) Query(qmsg *dns.Msg) (*dns.Msg, error) {
 			rmsg.Extra = append(rmsg.Extra, glue...)
 		}
 	}
-
-	//if q.typ == dns.TypeNS && q.Name == z.Name {
-	//
-	//	// "My" NS is special...
-	//	for _, ns := range z.NS {
-	//		rmsg.Answer = append(rmsg.Answer, ns.NS)
-	//	}
-	//
-	//} else if q.typ == dns.TypeSOA && q.Name == z.Name {
-	//
-	//	// If SOA, special...
-	//	rmsg.Answer = append(rmsg.Answer, z.SOA)
-	//
-	//} else if q.typ == dns.TypeDS && q.Name == z.Name && q.Name != "." {
-	//
-	//	// We should not be returning a DS record for ourselves.
-	//	// We'll make an exception for the root zone.
-	//
-	//	// Returning nil, nil will pass the request up to the parent zone.
-	//	return nil, nil
-	//
-	//} else if records, ok := z.Records[q]; ok {
-	//	// General case
-	//
-	//	if q.typ == dns.TypeNS {
-	//		rmsg.Ns = append(rmsg.Ns, records...)
-	//		rmsg.Authoritative = false
-	//	} else {
-	//		rmsg.Answer = append(rmsg.Answer, records...)
-	//	}
-	//
-	//} else if records, ok := z.Records[RecordKey{q.Name, dns.TypeNS}]; ok {
-	//	// Check if we're able to delegate the response elsewhere.
-	//	rmsg.Ns = append(rmsg.Ns, records...)
-	//	rmsg.Authoritative = false
-	//	if records, ok := z.Records[RecordKey{q.Name, dns.TypeDS}]; ok {
-	//		rmsg.Ns = append(rmsg.Ns, records...)
-	//	}
-	//} else {
-	//	// When not found...
-	//	rmsg.Ns = append(rmsg.Ns, z.SOA)
-	//}
-
-	//---
-
-	//// If we have NS records set anywhere, add some glue if we can.
-	//glue := make([]dns.RR, 0)
-	//for _, rr := range append(rmsg.Answer, rmsg.Ns...) {
-	//	if ns, ok := rr.(*dns.NS); ok {
-	//		if records, ok := z.Records[RecordKey{ns.Ns, dns.TypeA}]; ok {
-	//			glue = append(glue, records...)
-	//		} else if records, ok := z.Records[RecordKey{ns.Ns, dns.TypeAAAA}]; ok {
-	//			glue = append(glue, records...)
-	//		}
-	//	}
-	//}
-	//glue = dns.Dedup(glue, nil)
-	//if len(glue) > 0 {
-	//	rmsg.Extra = append(rmsg.Extra, glue...)
-	//}
 
 	//---
 
