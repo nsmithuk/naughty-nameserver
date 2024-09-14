@@ -31,7 +31,7 @@ func (t *InvalidRRSigDates) Setup(ns *naughty.Nameserver) error {
 
 		callbacks := naughty.NewStandardCallbacks(signer)
 		callbacks.Sign = func(msg *dns.Msg) (*dns.Msg, error) {
-			return t.Sign(msg, test.typ, signer)
+			return naughty.SignMsg(signer.Key(), signer.Signer(), msg, t.SignRRSet(test.typ))
 		}
 
 		zone := naughty.NewZone(test.name, ns.NSRecords, callbacks)
@@ -48,10 +48,6 @@ func (t *InvalidRRSigDates) Setup(ns *naughty.Nameserver) error {
 	}
 
 	return nil
-}
-
-func (t *InvalidRRSigDates) Sign(msg *dns.Msg, typ int, signer *naughty.SignerAutogenSingle) (*dns.Msg, error) {
-	return naughty.SignMsg(signer.Key(), signer.Signer(), msg, t.SignRRSet(typ))
 }
 
 func (t *InvalidRRSigDates) SignRRSet(typ int) naughty.SignRRSetSigner {

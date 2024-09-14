@@ -12,7 +12,6 @@ type Signer interface {
 	DelegatedSingers() []*dns.DS
 }
 
-// type SignMsgSigner func(*dns.DNSKEY, crypto.Signer, *dns.Msg, SignRRSetSigner) (*dns.Msg, error)
 type SignRRSetSigner func(*dns.DNSKEY, crypto.Signer, []dns.RR, int64, int64) (*dns.RRSIG, error)
 
 func SignMsg(key *dns.DNSKEY, signer crypto.Signer, msg *dns.Msg, rrsetSigner SignRRSetSigner) (*dns.Msg, error) {
@@ -27,20 +26,16 @@ func SignMsg(key *dns.DNSKEY, signer crypto.Signer, msg *dns.Msg, rrsetSigner Si
 		msg.Answer = append(msg.Answer, rrsig)
 	}
 
-	for _, rrset := range GroupRecordsByType(msg.Ns) {
+	for t, rrset := range GroupRecordsByType(msg.Ns) {
+		if t == dns.TypeNS {
+			// We don't sign NS records in the authority section.
+			continue
+		}
 		rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
 		if err != nil {
 			return nil, err
 		}
 		msg.Ns = append(msg.Ns, rrsig)
-	}
-
-	for _, rrset := range GroupRecordsByType(msg.Extra) {
-		rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
-		if err != nil {
-			return nil, err
-		}
-		msg.Extra = append(msg.Extra, rrsig)
 	}
 
 	return msg, nil

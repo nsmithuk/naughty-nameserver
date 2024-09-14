@@ -4,8 +4,8 @@ import "github.com/miekg/dns"
 
 type Callbacks struct {
 	// Message mutators
-	PreSigning  func(*dns.Msg) *dns.Msg
-	PostSigning func(*dns.Msg) *dns.Msg
+	//PreSigning  func(*dns.Msg) *dns.Msg
+	//PostSigning func(*dns.Msg) *dns.Msg
 
 	// Message signing
 	Keys             func() []*dns.DNSKEY
@@ -15,8 +15,8 @@ type Callbacks struct {
 
 func NewStandardCallbacks(signer Signer) *Callbacks {
 	return &Callbacks{
-		PreSigning:  func(m *dns.Msg) *dns.Msg { return m },
-		PostSigning: func(m *dns.Msg) *dns.Msg { return m },
+		//PreSigning:  func(m *dns.Msg) *dns.Msg { return m },
+		//PostSigning: func(m *dns.Msg) *dns.Msg { return m },
 
 		Keys:             func() []*dns.DNSKEY { return signer.Keys() },
 		DelegatedSingers: func() []*dns.DS { return signer.DelegatedSingers() },

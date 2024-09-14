@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/miekg/dns"
-	"github.com/nsmithuk/naughty-nameserver/behaviour"
 	"github.com/nsmithuk/naughty-nameserver/naughty"
 	"log"
 	"net"
@@ -26,10 +25,10 @@ func main() {
 
 	nameserver = naughty.NewNameserver(domain, []string{ns1, ns2})
 
-	err := nameserver.AddBehaviours(behaviour.GetAllBehaviours())
-	if err != nil {
-		log.Fatal(err)
-	}
+	//err := nameserver.AddBehaviours(behaviour.GetAllBehaviours())
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
 
 	go startDNSServer("udp", ":53")
 	go startDNSServer("tcp", ":53")

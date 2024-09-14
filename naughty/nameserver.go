@@ -95,6 +95,8 @@ func (ns *Nameserver) Query(qmsg *dns.Msg) (*dns.Msg, error) {
 	*/
 	for zoneName := range IterateDomainHierarchy(name) {
 
+		// TODO: catch DS lookups here?
+
 		// Is there is a zone with this name...
 		// Note that this map does not change once the server is setup, thus we don't need and thread-safe locking here.
 		if zone, ok := ns.Zones[zoneName]; ok {
@@ -178,12 +180,22 @@ func (ns *Nameserver) buildInitialZones() {
 			}
 			Log.Infof("DS:\t%s\n", signer.DelegatedSingers()[0])
 			Log.Infof("--------------------------------------\n")
+
+			//---
+			// External test
+			ns.Zones[name].AddRecord(&dns.NS{
+				Hdr: NewHeader(fmt.Sprintf("aws.%s", strings.TrimRight(name, ".")), dns.TypeNS),
+				Ns:  "ns-463.awsdns-57.com.",
+			})
+
 		}
 
 		ns.Zones[name].AddRecord(&dns.A{
 			Hdr: NewHeader(fmt.Sprintf("test.%s", strings.TrimRight(name, ".")), dns.TypeA),
 			A:   net.ParseIP("192.0.2.53"),
 		})
+
+		//---
 
 		last = ns.Zones[name]
 	}
