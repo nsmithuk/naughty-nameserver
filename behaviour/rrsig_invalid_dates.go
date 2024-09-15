@@ -35,8 +35,10 @@ func (t *InvalidRRSigDates) Setup(ns *naughty.Nameserver) error {
 		}
 
 		zone := naughty.NewZone(test.name, ns.NSRecords, callbacks)
-		ns.BaseZone.DelegateTo(zone)
-		ns.Zones[test.name] = zone
+		if err := ns.RegisterZone(zone); err != nil {
+			naughty.Warn(fmt.Sprintf("Failed to register zone '%s': %s", test.name, err.Error()))
+			return err
+		}
 
 		a := &dns.A{
 			Hdr: naughty.NewHeader(fmt.Sprintf("test.%s", test.name), dns.TypeA),

@@ -39,8 +39,10 @@ func (t *TwoValidZsks) Setup(ns *naughty.Nameserver) error {
 
 	// Note that we use "ourselves" as the Signer.
 	zone := naughty.NewZone(name, ns.NSRecords, naughty.NewStandardCallbacks(t))
-	ns.BaseZone.DelegateTo(zone)
-	ns.Zones[name] = zone
+	if err := ns.RegisterZone(zone); err != nil {
+		naughty.Warn(fmt.Sprintf("Failed to register zone '%s': %s", name, err.Error()))
+		return err
+	}
 
 	a := &dns.A{
 		Hdr: naughty.NewHeader(fmt.Sprintf("test.%s", name), dns.TypeA),

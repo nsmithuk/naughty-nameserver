@@ -36,8 +36,10 @@ func (t *InvalidRRSigSignature) Setup(ns *naughty.Nameserver) error {
 	}
 
 	zone := naughty.NewZone(name, ns.NSRecords, callbacks)
-	ns.BaseZone.DelegateTo(zone)
-	ns.Zones[name] = zone
+	if err := ns.RegisterZone(zone); err != nil {
+		naughty.Warn(fmt.Sprintf("Failed to register zone '%s': %s", name, err.Error()))
+		return err
+	}
 
 	//---
 

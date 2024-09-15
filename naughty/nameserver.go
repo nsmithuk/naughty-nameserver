@@ -63,6 +63,22 @@ func NewNameserver(baseZoneName string, nsIPv4s []string) *Nameserver {
 	return server
 }
 
+func (ns *Nameserver) RegisterZone(new *Zone) error {
+	return ns.RegisterToZone(new, ns.BaseZone)
+}
+
+func (ns *Nameserver) RegisterToZone(new *Zone, existing *Zone) error {
+
+	if _, ok := ns.Zones[new.Name]; ok {
+		return fmt.Errorf("zone with name %s already exists", new.Name)
+	}
+
+	ns.Zones[new.Name] = new
+	existing.DelegateTo(new)
+
+	return nil
+}
+
 func (ns *Nameserver) AddBehaviours(behaviours map[string]BehaviourFactory) error {
 	for _, b := range behaviours {
 		if err := b.Setup(ns); err != nil {

@@ -14,7 +14,7 @@ func IterateDownDomainHierarchy(domain string) iter.Seq[string] {
 
 		domain = fqdn(domain)
 
-		// We add an index as we want root (.) returned at the end.
+		// We include an extra index such the root (.) is returned at the end.
 		indexes := append(dns.Split(domain), len(domain)-1)
 
 		for _, i := range indexes {
