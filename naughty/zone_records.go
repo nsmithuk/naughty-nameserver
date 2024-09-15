@@ -35,8 +35,6 @@ type record struct {
 	entries map[uint16][]dns.RR
 }
 
-type RecordSet []dns.RR
-
 func (zoneRecords *records) get(rrname string, rrtype uint16) []dns.RR {
 
 	// Is it fast? No. Is it good enough? Yes.

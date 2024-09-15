@@ -2,7 +2,6 @@ package naughty
 
 import (
 	"github.com/miekg/dns"
-	"strings"
 	"time"
 )
 
@@ -14,13 +13,15 @@ type Zone struct {
 	NS  []GluedNS
 	SOA *dns.SOA
 
-	records records
+	//records map[RRSetKey]RecordSet
+
+	// a map of name, then type
+	records RecordStore
 }
 
-type RecordKey struct {
-	Name string
-	typ  uint16
-}
+type RecordSet []dns.RR
+
+type RecordStore map[string]map[uint16]RecordSet
 
 //---
 
@@ -35,12 +36,13 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 		Name:      name,
 		NS:        make([]GluedNS, len(nameservers)),
 		Callbacks: callbacks,
-		records: records{
-			collection:      make([]*record, 0),
-			nsec3Salt:       "baff1edd",
-			nsec3Iterations: 2,
-			origin:          name,
-		},
+		//records: records{
+		//	collection:      make([]*record, 0),
+		//	nsec3Salt:       "baff1edd",
+		//	nsec3Iterations: 2,
+		//	origin:          name,
+		//},
+		records: make(RecordStore),
 
 		SOA: &dns.SOA{
 			Hdr:     NewHeader(name, dns.TypeSOA),
@@ -80,8 +82,24 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 	return zone
 }
 
+func (z *Zone) GetRecord(rrname string, rrtype uint16) []dns.RR {
+	rrset, _ := z.records[rrname][rrtype]
+	return rrset
+}
+
 func (z *Zone) AddRecord(r dns.RR) {
-	z.records.add(r)
+	qname := fqdn(r.Header().Name)
+	qtype := r.Header().Rrtype
+
+	if _, ok := z.records[qname]; !ok {
+		z.records[qname] = make(map[uint16]RecordSet)
+	}
+	if _, ok := z.records[qname][qtype]; !ok {
+		z.records[qname][qtype] = make(RecordSet, 0, 1)
+	}
+
+	z.records[qname][qtype] = append(z.records[qname][qtype], r)
+	z.records[qname][qtype] = dns.Dedup(z.records[qname][qtype], nil)
 }
 
 func (z *Zone) AddRecords(r []dns.RR) {
@@ -102,8 +120,6 @@ func (z *Zone) DelegateTo(child *Zone) {
 
 func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 	// We lower-case the name here to work with DNS 0x20 encoding.
-	q := RecordKey{strings.ToLower(qmsg.Question[0].Name), qmsg.Question[0].Qtype}
-
 	qname := fqdn(qmsg.Question[0].Name)
 	qtype := qmsg.Question[0].Qtype
 
@@ -118,12 +134,12 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 			- DS records are special as although for this apex, it's served by this zone's parent.
 	*/
 
-	if q.Name == z.Name {
+	if qname == z.Name {
 		// We're looking at the zone's apex
 
 		rmsg.Authoritative = true
 
-		switch q.typ {
+		switch qtype {
 		case dns.TypeSOA:
 			rmsg.Answer = append(rmsg.Answer, z.SOA)
 		case dns.TypeNS:
@@ -133,7 +149,7 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 		case dns.TypeDS:
 			// We should not be returning a DS record for ourself.
 			// We'll make an exception for the root zone. // TODO: should we?
-			if rrset := z.records.get(qname, qtype); rrset != nil && q.Name == "." {
+			if rrset := z.GetRecord(qname, qtype); rrset != nil && qname == "." {
 				rmsg.Authoritative = true
 				rmsg.Answer = append(rmsg.Answer, rrset...)
 			}
@@ -141,15 +157,15 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 			// Returning nil, nil will pass the request up to the parent zone.
 			return nil, nil
 		default:
-			if rrset := z.records.get(qname, qtype); rrset != nil {
+			if rrset := z.GetRecord(qname, qtype); rrset != nil {
 				rmsg.Answer = append(rmsg.Answer, rrset...)
 			}
 		}
 
 	} else {
 		// Check if we have an exact match to the query
-		if rrset := z.records.get(qname, qtype); rrset != nil {
-			if q.typ == dns.TypeNS {
+		if rrset := z.GetRecord(qname, qtype); rrset != nil {
+			if qtype == dns.TypeNS {
 				// Then we're delegating
 				rmsg.Ns = append(rmsg.Ns, rrset...)
 			} else {
@@ -159,11 +175,11 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 		} else {
 			// Else we might be able to delegate them in the right direction
 			// We need to all zones from the FQDN in the question, down to this zone.
-			for name := range IterateDownDomainHierarchy(q.Name) {
+			for name := range IterateDownDomainHierarchy(qname) {
 				if !dns.IsSubDomain(z.Name, name) {
 					// Break if we're now looking at a parent of this zone.
 					break
-				} else if rrset := z.records.get(qname, dns.TypeNS); rrset != nil {
+				} else if rrset := z.GetRecord(qname, dns.TypeNS); rrset != nil {
 					rmsg.Ns = append(rmsg.Ns, rrset...)
 					break
 				}
@@ -183,9 +199,9 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 		glue := make([]dns.RR, 0)
 		for _, rr := range append(rmsg.Answer, rmsg.Ns...) {
 			if ns, ok := rr.(*dns.NS); ok {
-				if rrset := z.records.get(ns.Ns, dns.TypeA); rrset != nil {
+				if rrset := z.GetRecord(ns.Ns, dns.TypeA); rrset != nil {
 					glue = append(glue, rrset...)
-				} else if rrset := z.records.get(ns.Ns, dns.TypeAAAA); rrset != nil {
+				} else if rrset := z.GetRecord(ns.Ns, dns.TypeAAAA); rrset != nil {
 					glue = append(glue, rrset...)
 				}
 			}
