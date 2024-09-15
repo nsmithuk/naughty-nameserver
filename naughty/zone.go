@@ -14,8 +14,6 @@ type Zone struct {
 	NS  []GluedNS
 	SOA *dns.SOA
 
-	//Records map[RecordKey]RecordSet
-
 	records records
 }
 
@@ -23,11 +21,6 @@ type RecordKey struct {
 	Name string
 	typ  uint16
 }
-
-//type records struct {
-//	domain  string
-//	entries map[uint16]RecordSet
-//}
 
 //---
 
@@ -42,8 +35,12 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 		Name:      name,
 		NS:        make([]GluedNS, len(nameservers)),
 		Callbacks: callbacks,
-		//Records:   make(map[RecordKey]RecordSet),
-		records: records{},
+		records: records{
+			collection:      make([]*record, 0),
+			nsec3Salt:       "baff1edd",
+			nsec3Iterations: 2,
+			origin:          name,
+		},
 
 		SOA: &dns.SOA{
 			Hdr:     NewHeader(name, dns.TypeSOA),
@@ -59,6 +56,8 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 
 	//---
 
+	zone.AddRecord(zone.SOA)
+
 	// Add the zone's own nameservers
 	for i, ns := range nameservers {
 		// Add the records.
@@ -71,7 +70,7 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 		zone.NS[i] = ns
 	}
 
-	// Add the Keys
+	// Add the DNSKEYs.
 	for _, dnskey := range callbacks.Keys() {
 		zone.AddRecord(dnskey)
 	}
@@ -149,7 +148,6 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 
 	} else {
 		// Check if we have an exact match to the query
-		//if records, ok := z.Records[q]; ok {
 		if rrset := z.records.get(qname, qtype); rrset != nil {
 			if q.typ == dns.TypeNS {
 				// Then we're delegating
@@ -163,7 +161,7 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 			// We need to all zones from the FQDN in the question, down to this zone.
 			for name := range IterateDownDomainHierarchy(q.Name) {
 				if !dns.IsSubDomain(z.Name, name) {
-					// Break if we're now looking in a parent to this zone.
+					// Break if we're now looking at a parent of this zone.
 					break
 				} else if rrset := z.records.get(qname, dns.TypeNS); rrset != nil {
 					rmsg.Ns = append(rmsg.Ns, rrset...)

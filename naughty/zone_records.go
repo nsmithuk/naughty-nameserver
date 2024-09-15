@@ -1,6 +1,8 @@
 package naughty
 
 import (
+	"encoding/base32"
+	"encoding/hex"
 	"github.com/miekg/dns"
 	"slices"
 	"strconv"
@@ -8,21 +10,40 @@ import (
 )
 
 type records struct {
+	// Kept in a NSEC friendly order.
 	collection []*record
+	origin     string
+
+	nsec3OrderedCollection []nsec3OrderedRecord
+
+	nsec3Salt       string
+	nsec3Iterations uint16
+}
+
+type nsec3OrderedRecord struct {
+	digest string
+	record *record
 }
 
 type record struct {
-	domain  string
+	domain string
+
+	nsec            *dns.NSEC
+	nsec3           *dns.NSEC3
+	nsec3HashedName string
+
 	entries map[uint16][]dns.RR
 }
 
 type RecordSet []dns.RR
 
 func (zoneRecords *records) get(rrname string, rrtype uint16) []dns.RR {
-	i, found := slices.BinarySearchFunc(zoneRecords.collection, rrname, func(r *record, s string) int {
-		return recordsCmp(r, &record{domain: s})
+
+	// Is it fast? No. Is it good enough? Yes.
+	i := slices.IndexFunc(zoneRecords.collection, func(r *record) bool {
+		return r.domain == rrname
 	})
-	if !found {
+	if i < 0 {
 		return nil
 	}
 
@@ -42,20 +63,22 @@ func (zoneRecords *records) add(rr dns.RR) {
 	domain := fqdn(rr.Header().Name)
 	rrtype := rr.Header().Rrtype
 
-	// Find the right record
-	i, found := slices.BinarySearchFunc(zoneRecords.collection, domain, func(r *record, s string) int {
-		return recordsCmp(r, &record{domain: s})
+	i := slices.IndexFunc(zoneRecords.collection, func(r *record) bool {
+		return r.domain == domain
 	})
 
 	//---
 
 	var r *record
-	if found {
+	if i >= 0 {
 		r = zoneRecords.collection[i]
 	} else {
 		r = &record{domain: domain, entries: make(map[uint16][]dns.RR)}
 		zoneRecords.collection = append(zoneRecords.collection, r)
-		slices.SortFunc(zoneRecords.collection, recordsCmp)
+
+		// This will ensure they're in the correct order, and the next domain is pre-mapped.
+		defer zoneRecords.remapNextDomain()
+		defer zoneRecords.remapNsec3OrderedCollection()
 	}
 
 	//---
@@ -66,6 +89,66 @@ func (zoneRecords *records) add(rr dns.RR) {
 
 	r.entries[rrtype] = append(r.entries[rrtype], rr)
 	r.entries[rrtype] = dns.Dedup(r.entries[rrtype], nil)
+
+	typeBitMap := make([]uint16, len(r.entries))
+	c := 0
+	for t, _ := range r.entries {
+		typeBitMap[c] = t
+		c++
+	}
+
+	//---
+
+	r.nsec = &dns.NSEC{
+		Hdr:        NewHeader(domain, dns.TypeNSEC),
+		TypeBitMap: typeBitMap,
+		// NextDomain is set in a separate step
+	}
+
+	r.nsec3HashedName = strings.ToLower(dns.HashName(domain, dns.SHA1, zoneRecords.nsec3Iterations, zoneRecords.nsec3Salt))
+	r.nsec3 = &dns.NSEC3{
+		Hdr:        NewHeader(r.nsec3HashedName+"."+zoneRecords.origin, dns.TypeNSEC3),
+		TypeBitMap: typeBitMap,
+		Hash:       dns.SHA1,
+		Flags:      0,
+		Iterations: zoneRecords.nsec3Iterations,
+		SaltLength: uint8(hex.DecodedLen(len(zoneRecords.nsec3Salt))),
+		Salt:       zoneRecords.nsec3Salt,
+		// NextDomain & HashLength is set in a separate step
+	}
+}
+
+func (zoneRecords *records) remapNextDomain() {
+	slices.SortFunc(zoneRecords.collection, recordsCmp)
+	for i, r := range zoneRecords.collection {
+		j := (i + 1) % len(zoneRecords.collection)
+		r.nsec.NextDomain = zoneRecords.collection[j].domain
+	}
+}
+
+func (zoneRecords *records) remapNsec3OrderedCollection() {
+	// We make the slice
+	zoneRecords.nsec3OrderedCollection = make([]nsec3OrderedRecord, len(zoneRecords.collection))
+	for i, r := range zoneRecords.collection {
+		zoneRecords.nsec3OrderedCollection[i] = nsec3OrderedRecord{
+			digest: r.nsec3HashedName,
+			record: r,
+		}
+	}
+
+	//---
+	// We sort the slice
+	slices.SortFunc(zoneRecords.nsec3OrderedCollection, func(a, b nsec3OrderedRecord) int {
+		return strings.Compare(a.digest, b.digest)
+	})
+
+	//---
+	// We map the next NextDomain
+	for i, r := range zoneRecords.nsec3OrderedCollection {
+		j := (i + 1) % len(zoneRecords.nsec3OrderedCollection)
+		r.record.nsec3.NextDomain = zoneRecords.nsec3OrderedCollection[j].record.nsec3HashedName
+		r.record.nsec3.HashLength = uint8(base32.StdEncoding.DecodedLen(len(zoneRecords.nsec3OrderedCollection[j].record.nsec3HashedName)))
+	}
 }
 
 func recordsCmp(a, b *record) int {
