@@ -82,8 +82,13 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 	return zone
 }
 
-func (z *Zone) GetRecord(rrname string, rrtype uint16) []dns.RR {
+func (z *Zone) GetRecords(rrname string, rrtype uint16) []dns.RR {
 	rrset, _ := z.records[rrname][rrtype]
+	return rrset
+}
+
+func (z *Zone) GetTypesAndRecords(rrname string) map[uint16]RecordSet {
+	rrset, _ := z.records[rrname]
 	return rrset
 }
 
@@ -118,7 +123,108 @@ func (z *Zone) DelegateTo(child *Zone) {
 	}
 }
 
+func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg) {
+	// Assume DS for qname has already been checked.
+
+	// Do we have any records in the zone that exactly matches the QName and QType?
+	if rrset := z.GetRecords(qname, qtype); rrset != nil {
+		rmsg.Authoritative = true
+		rmsg.Answer = append(rmsg.Answer, rrset...)
+		return
+	}
+
+	// Do we have any wildcards that match the QName and QType?
+	// TODO: Wildcard check...
+
+	// Do we have any records that match just the QName?
+	if types := z.GetTypesAndRecords(qname); types != nil {
+		// Is one of the types a CNAME?
+		if cnames, _ := types[dns.TypeCNAME]; cnames != nil {
+			// TODO: deal with this
+		} else {
+			// NODATA
+			rmsg.Authoritative = true
+			rmsg.Answer = append(rmsg.Ns, z.SOA)
+		}
+		return
+	}
+
+	// Do we have any NS records that match a suffix of the QName?
+	for name := range IterateDownDomainHierarchy(qname) {
+		if !dns.IsSubDomain(z.Name, name) {
+			// Break if we're now looking at a parent of this zone.
+			break
+		}
+		if rrset := z.GetRecords(name, dns.TypeNS); rrset != nil {
+			rmsg.Ns = append(rmsg.Ns, rrset...)
+			return
+		}
+	}
+
+	rmsg.Authoritative = true
+	rmsg.Rcode = dns.RcodeNameError
+	rmsg.Answer = append(rmsg.Ns, z.SOA)
+}
+
 func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
+	qname := fqdn(qmsg.Question[0].Name)
+	qtype := qmsg.Question[0].Qtype
+
+	if qtype == dns.TypeDS && qname == z.Name {
+		// We should not be returning a DS record for ourselves.
+		// Returning nil, nil will pass the request up to the parent zone.
+		return nil, nil
+	}
+
+	rmsg := new(dns.Msg)
+	rmsg.SetReply(qmsg)
+
+	z.populateResponse(qname, qtype, rmsg)
+
+	//---
+
+	// See if we can help out with any glue.
+	if len(rmsg.Ns) > 0 {
+		glue := make([]dns.RR, 0)
+		for _, rr := range append(rmsg.Answer, rmsg.Ns...) {
+			if ns, ok := rr.(*dns.NS); ok {
+				if rrset := z.GetRecords(ns.Ns, dns.TypeA); rrset != nil {
+					glue = append(glue, rrset...)
+				} else if rrset := z.GetRecords(ns.Ns, dns.TypeAAAA); rrset != nil {
+					glue = append(glue, rrset...)
+				}
+			}
+		}
+		glue = dns.Dedup(glue, nil)
+		if len(glue) > 0 {
+			rmsg.Extra = append(rmsg.Extra, glue...)
+		}
+	}
+
+	//---
+
+	if rmsg.Authoritative && Do(qmsg) {
+		var err error
+		rmsg, err = z.Callbacks.DenyExistence(rmsg, z.records)
+		if err != nil {
+			return nil, err
+		}
+
+		rmsg, err = z.Callbacks.Sign(rmsg)
+		if err != nil {
+			return nil, err
+		}
+
+		rmsg.AuthenticatedData = true
+	}
+
+	//---
+
+	// Finish. Have some tea.
+	return rmsg, nil
+}
+
+func (z *Zone) Exchangexxx(qmsg *dns.Msg) (*dns.Msg, error) {
 	// We lower-case the name here to work with DNS 0x20 encoding.
 	qname := fqdn(qmsg.Question[0].Name)
 	qtype := qmsg.Question[0].Qtype
@@ -149,7 +255,7 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 		case dns.TypeDS:
 			// We should not be returning a DS record for ourself.
 			// We'll make an exception for the root zone. // TODO: should we?
-			if rrset := z.GetRecord(qname, qtype); rrset != nil && qname == "." {
+			if rrset := z.GetRecords(qname, qtype); rrset != nil && qname == "." {
 				rmsg.Authoritative = true
 				rmsg.Answer = append(rmsg.Answer, rrset...)
 			}
@@ -157,14 +263,14 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 			// Returning nil, nil will pass the request up to the parent zone.
 			return nil, nil
 		default:
-			if rrset := z.GetRecord(qname, qtype); rrset != nil {
+			if rrset := z.GetRecords(qname, qtype); rrset != nil {
 				rmsg.Answer = append(rmsg.Answer, rrset...)
 			}
 		}
 
 	} else {
 		// Check if we have an exact match to the query
-		if rrset := z.GetRecord(qname, qtype); rrset != nil {
+		if rrset := z.GetRecords(qname, qtype); rrset != nil {
 			if qtype == dns.TypeNS {
 				// Then we're delegating
 				rmsg.Ns = append(rmsg.Ns, rrset...)
@@ -179,7 +285,7 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 				if !dns.IsSubDomain(z.Name, name) {
 					// Break if we're now looking at a parent of this zone.
 					break
-				} else if rrset := z.GetRecord(qname, dns.TypeNS); rrset != nil {
+				} else if rrset := z.GetRecords(qname, dns.TypeNS); rrset != nil {
 					rmsg.Ns = append(rmsg.Ns, rrset...)
 					break
 				}
@@ -199,9 +305,9 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 		glue := make([]dns.RR, 0)
 		for _, rr := range append(rmsg.Answer, rmsg.Ns...) {
 			if ns, ok := rr.(*dns.NS); ok {
-				if rrset := z.GetRecord(ns.Ns, dns.TypeA); rrset != nil {
+				if rrset := z.GetRecords(ns.Ns, dns.TypeA); rrset != nil {
 					glue = append(glue, rrset...)
-				} else if rrset := z.GetRecord(ns.Ns, dns.TypeAAAA); rrset != nil {
+				} else if rrset := z.GetRecords(ns.Ns, dns.TypeAAAA); rrset != nil {
 					glue = append(glue, rrset...)
 				}
 			}
@@ -216,10 +322,16 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 
 	if rmsg.Authoritative && Do(qmsg) {
 		var err error
+		rmsg, err = z.Callbacks.DenyExistence(rmsg, z.records)
+		if err != nil {
+			return nil, err
+		}
+
 		rmsg, err = z.Callbacks.Sign(rmsg)
 		if err != nil {
 			return nil, err
 		}
+
 		rmsg.AuthenticatedData = true
 	}
 
