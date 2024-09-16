@@ -21,5 +21,6 @@ func GetAllBehaviours() map[string]naughty.BehaviourFactory {
 		"missmatch-ds":          new(MissmatchDS),
 		"zsk-ds":                new(ZskDS),
 		"one-valid-one-invalid": new(ValidInvalidRRSig),
+		"wildcard-valid":        new(WildcardValid),
 	}
 }

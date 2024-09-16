@@ -70,6 +70,7 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 		ns.NS = dns.Copy(ns.NS).(*dns.NS)
 		ns.NS.Header().Name = name
 		zone.NS[i] = ns
+		zone.AddRecord(ns.NS)
 	}
 
 	// Add the DNSKEYs.
@@ -123,7 +124,7 @@ func (z *Zone) DelegateTo(child *Zone) {
 	}
 }
 
-func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg) {
+func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg) (synthesisedFromWildcard bool) {
 	// Assume DS for qname has already been checked.
 
 	// Do we have any records in the zone that exactly matches the QName and QType?
@@ -134,36 +135,57 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg) {
 	}
 
 	// Do we have any wildcards that match the QName and QType?
-	// TODO: Wildcard check...
+	// TODO: The RRSIG label count needs amending!
+	// TODO: we also need to add a NSEC(3) record into the Authority section, covering the qname.
+	// 	https://datatracker.ietf.org/doc/html/rfc7129#section-5.3
+	if rrset := z.GetRecords("*."+z.Name, qtype); rrset != nil {
+		result := make([]dns.RR, len(rrset))
+		for i, rr := range rrset {
+			result[i] = dns.Copy(rr)
+			result[i].Header().Name = qname
+		}
+		rmsg.Authoritative = true
+		rmsg.Answer = append(rmsg.Answer, result...)
+		return true
+	}
 
 	// Do we have any records that match just the QName?
 	if types := z.GetTypesAndRecords(qname); types != nil {
 		// Is one of the types a CNAME?
 		if cnames, _ := types[dns.TypeCNAME]; cnames != nil {
 			// TODO: deal with this
+			return
+		} else if rrset, _ := types[dns.TypeNS]; rrset != nil && qname != z.Name {
+			// Then we have an exact match on a delegation
+			rmsg.Ns = append(rmsg.Ns, rrset...)
+			return
 		} else {
 			// NODATA
 			rmsg.Authoritative = true
 			rmsg.Answer = append(rmsg.Ns, z.SOA)
+			return
 		}
-		return
 	}
 
 	// Do we have any NS records that match a suffix of the QName?
 	for name := range IterateDownDomainHierarchy(qname) {
-		if !dns.IsSubDomain(z.Name, name) {
-			// Break if we're now looking at a parent of this zone.
+		if name == z.Name || !dns.IsSubDomain(z.Name, name) {
+			// Break if we're now looking at this zone, or a parent of this zone.
 			break
 		}
 		if rrset := z.GetRecords(name, dns.TypeNS); rrset != nil {
+			// We're delegating...
 			rmsg.Ns = append(rmsg.Ns, rrset...)
 			return
 		}
 	}
 
+	// NXDOMAIN
 	rmsg.Authoritative = true
 	rmsg.Rcode = dns.RcodeNameError
 	rmsg.Answer = append(rmsg.Ns, z.SOA)
+
+	return
 }
 
 func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
@@ -179,7 +201,7 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 	rmsg := new(dns.Msg)
 	rmsg.SetReply(qmsg)
 
-	z.populateResponse(qname, qtype, rmsg)
+	synthesisedFromWildcard := z.populateResponse(qname, qtype, rmsg)
 
 	//---
 
@@ -216,6 +238,10 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 		}
 
 		rmsg.AuthenticatedData = true
+	}
+
+	if synthesisedFromWildcard {
+		// Fix the record headers.
 	}
 
 	//---
