@@ -62,6 +62,27 @@ func GroupRecordsByType(rrset []dns.RR) map[uint16][]dns.RR {
 	return results
 }
 
+func GroupRecordsByNameAndType(rrset []dns.RR) map[string]map[uint16][]dns.RR {
+
+	// First we separate by name
+	names := make(map[string][]dns.RR)
+	for _, rr := range rrset {
+		name := rr.Header().Name
+		if _, ok := names[name]; !ok {
+			names[name] = []dns.RR{}
+		}
+		names[name] = append(names[name], rr)
+	}
+
+	// And now also by type.
+	namesAndType := make(map[string]map[uint16][]dns.RR)
+	for name, set := range names {
+		namesAndType[name] = GroupRecordsByType(set)
+	}
+
+	return namesAndType
+}
+
 // Do Has the DO bit been set on the question
 func Do(msg *dns.Msg) bool {
 	for _, extra := range msg.Extra {

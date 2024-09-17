@@ -18,27 +18,52 @@ func SignMsg(key *dns.DNSKEY, signer crypto.Signer, msg *dns.Msg, rrsetSigner Si
 	inception := time.Now().Add(time.Hour * -24).Unix()
 	expiration := time.Now().Add(time.Hour * 24).Unix()
 
-	// TODO: Group by header type AND name.
+	// Outer-loop covers names.
+	// Inner loop covers types.
 
-	for _, rrset := range GroupRecordsByType(msg.Answer) {
-		rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
-		if err != nil {
-			return nil, err
+	for _, name := range GroupRecordsByNameAndType(msg.Answer) {
+		for _, rrset := range name {
+			rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
+			if err != nil {
+				return nil, err
+			}
+			msg.Answer = append(msg.Answer, rrsig)
 		}
-		msg.Answer = append(msg.Answer, rrsig)
 	}
 
-	for t, rrset := range GroupRecordsByType(msg.Ns) {
-		if t == dns.TypeNS {
-			// We don't sign NS records in the authority section.
-			continue
+	for _, name := range GroupRecordsByNameAndType(msg.Ns) {
+		for t, rrset := range name {
+			if t == dns.TypeNS {
+				// We don't sign NS records in the authority section.
+				continue
+			}
+			rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
+			if err != nil {
+				return nil, err
+			}
+			msg.Ns = append(msg.Ns, rrsig)
 		}
-		rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
-		if err != nil {
-			return nil, err
-		}
-		msg.Ns = append(msg.Ns, rrsig)
 	}
+
+	//for _, rrset := range GroupRecordsByType(msg.Answer) {
+	//	rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	msg.Answer = append(msg.Answer, rrsig)
+	//}
+
+	//for t, rrset := range GroupRecordsByType(msg.Ns) {
+	//	if t == dns.TypeNS {
+	//		// We don't sign NS records in the authority section.
+	//		continue
+	//	}
+	//	rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	msg.Ns = append(msg.Ns, rrsig)
+	//}
 
 	return msg, nil
 }
