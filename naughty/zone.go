@@ -1,6 +1,7 @@
 package naughty
 
 import (
+	"fmt"
 	"github.com/miekg/dns"
 	"strings"
 	"time"
@@ -23,6 +24,18 @@ type Zone struct {
 type RecordSet []dns.RR
 
 type RecordStore map[string]map[uint16]RecordSet
+
+type wildcardMapping struct {
+	qname    string
+	wildcard string
+}
+
+type wildcardMappingHolder struct {
+	mappings     []wildcardMapping
+	moreMappings map[string]string
+}
+
+type wildcardUsage map[string]string
 
 //---
 
@@ -125,8 +138,13 @@ func (z *Zone) DelegateTo(child *Zone) {
 	}
 }
 
-func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg) (synthesisedFromWildcard bool) {
+func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, metadata *string, wildcards []wildcardMapping, holder *wildcardMappingHolder, wcUsage wildcardUsage) {
 	// Assume DS for qname has already been checked.
+
+	fmt.Printf("%s\n", qname)
+	fmt.Printf("%p\n", wcUsage)
+	//fmt.Printf("%s\n", *metadata)
+	fmt.Println("----------------------------")
 
 	// Do we have any records in the zone that exactly matches the QName and QType?
 	if rrset := z.GetRecords(qname, qtype); rrset != nil {
@@ -156,7 +174,15 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg) (synt
 			}
 			rmsg.Authoritative = true
 			rmsg.Answer = append(rmsg.Answer, result...)
-			return true
+
+			// Record wildcard
+			*metadata = wildcardQname + "/" + *metadata
+			wildcards = append(wildcards, wildcardMapping{qname, wildcardQname})
+			holder.mappings = append(holder.mappings, wildcardMapping{qname, wildcardQname})
+			holder.moreMappings[wildcardQname] = qname
+			wcUsage[wildcardQname] = qname
+
+			return
 		}
 		if rrset := z.GetRecords(wildcardQname, dns.TypeCNAME); rrset != nil {
 			target := rrset[0].(*dns.CNAME).Target
@@ -166,14 +192,21 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg) (synt
 
 			rmsg.Authoritative = true
 			for _, cname := range rrset {
-				// We need to ensure the target is a fqdn
+				// We need to ensure the target is a fqdn, and the header later.
 				cn := dns.Copy(cname)
 				cn.(*dns.CNAME).Target = target
 				rmsg.Answer = append(rmsg.Answer, cn)
 			}
 
-			z.populateResponse(target, qtype, rmsg)
-			return true
+			// Record wildcard
+			*metadata = wildcardQname + "/" + *metadata
+			wildcards = append(wildcards, wildcardMapping{qname, wildcardQname})
+			holder.mappings = append(holder.mappings, wildcardMapping{qname, wildcardQname})
+			holder.moreMappings[wildcardQname] = qname
+			wcUsage[wildcardQname] = qname
+
+			z.populateResponse(target, qtype, rmsg, metadata, wildcards, holder, wcUsage)
+			return
 		}
 	}
 
@@ -195,7 +228,8 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg) (synt
 				rmsg.Answer = append(rmsg.Answer, cn)
 			}
 
-			return z.populateResponse(target, qtype, rmsg)
+			z.populateResponse(target, qtype, rmsg, metadata, wildcards, holder, wcUsage)
+			return
 		} else if rrset, _ := types[dns.TypeNS]; rrset != nil && qname != z.Name {
 			// Then we have an exact match on a delegation
 			rmsg.Ns = append(rmsg.Ns, rrset...)
@@ -242,7 +276,19 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 	rmsg := new(dns.Msg)
 	rmsg.SetReply(qmsg)
 
-	synthesisedFromWildcard := z.populateResponse(qname, qtype, rmsg)
+	test := "test"
+	wildcardsUsed := make([]wildcardMapping, 0)
+	wildcardsUsedHolder := &wildcardMappingHolder{
+		mappings:     make([]wildcardMapping, 0),
+		moreMappings: make(map[string]string),
+	}
+	wcUsage := make(wildcardUsage)
+
+	z.populateResponse(qname, qtype, rmsg, &test, wildcardsUsed, wildcardsUsedHolder, wcUsage)
+
+	fmt.Printf("%p\n", wcUsage)
+	//fmt.Printf("%s\n", test)
+	fmt.Println("----------------------------")
 
 	//---
 
@@ -281,15 +327,15 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 		rmsg.AuthenticatedData = true
 	}
 
-	if synthesisedFromWildcard {
-		// We need to set the correct header name.
-		// We can't do it before we sign it though, otherwise the label count is wrong.
-		//for _, rrset := range slices.Concat(rmsg.Answer, rmsg.Ns, rmsg.Extra) {
-		//	if strings.HasPrefix(rrset.Header().Name, "*") {
-		//		rrset.Header().Name = qmsg.Question[0].Name
-		//	}
-		//}
-	}
+	//if synthesisedFromWildcard {
+	//	// We need to set the correct header name.
+	//	// We can't do it before we sign it though, otherwise the label count is wrong.
+	//	//for _, rrset := range slices.Concat(rmsg.Answer, rmsg.Ns, rmsg.Extra) {
+	//	//	if strings.HasPrefix(rrset.Header().Name, "*") {
+	//	//		rrset.Header().Name = qmsg.Question[0].Name
+	//	//	}
+	//	//}
+	//}
 
 	//---
 
