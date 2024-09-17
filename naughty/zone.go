@@ -140,10 +140,9 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, wildc
 	// Do we have any wildcards that match the QName and QType?
 	// We can only have a wildcard if there are more labels in the question than zone name (* cannot catch the apex).
 	if dns.CountLabel(qname) > dns.CountLabel(z.Name) {
-		labelIndexes := dns.Split(qname)
 
 		// Replaces the first label with *
-		wildcardQname := "*." + qname[labelIndexes[1]:]
+		wildcardQname := wildcardName(qname)
 
 		if rrset := z.GetRecords(wildcardQname, qtype); rrset != nil {
 			result := make([]dns.RR, len(rrset))
@@ -208,7 +207,7 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, wildc
 		} else {
 			// NODATA
 			rmsg.Authoritative = true
-			rmsg.Answer = append(rmsg.Ns, z.SOA)
+			rmsg.Ns = append(rmsg.Ns, z.SOA)
 			return
 		}
 	}
@@ -229,7 +228,7 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, wildc
 	// NXDOMAIN
 	rmsg.Authoritative = true
 	rmsg.Rcode = dns.RcodeNameError
-	rmsg.Answer = append(rmsg.Ns, z.SOA)
+	rmsg.Ns = append(rmsg.Ns, z.SOA)
 
 	return
 }
@@ -269,13 +268,6 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 		if len(glue) > 0 {
 			rmsg.Extra = append(rmsg.Extra, glue...)
 		}
-	}
-
-	//---
-
-	if len(wildcardsUsed) > 0 {
-		// TODO: Add some NSEC(3) records. https://datatracker.ietf.org/doc/html/rfc7129#section-5.3
-		// Should be in z.Callbacks.DenyExistence()
 	}
 
 	//---

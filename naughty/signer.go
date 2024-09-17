@@ -18,6 +18,8 @@ func SignMsg(key *dns.DNSKEY, signer crypto.Signer, msg *dns.Msg, rrsetSigner Si
 	inception := time.Now().Add(time.Hour * -24).Unix()
 	expiration := time.Now().Add(time.Hour * 24).Unix()
 
+	// TODO: Group by header type AND name.
+
 	for _, rrset := range GroupRecordsByType(msg.Answer) {
 		rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
 		if err != nil {

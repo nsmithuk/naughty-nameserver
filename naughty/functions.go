@@ -29,6 +29,12 @@ func fqdn(name string) string {
 	return dns.Fqdn(strings.ToLower(name))
 }
 
+// wildcardName replaces the first label with *
+func wildcardName(name string) string {
+	labelIndexes := dns.Split(name)
+	return "*." + name[labelIndexes[1]:]
+}
+
 func NewHeader(name string, rrtype uint16) dns.RR_Header {
 	name = dns.Fqdn(name)
 	return dns.RR_Header{
