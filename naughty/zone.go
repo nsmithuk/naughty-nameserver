@@ -275,13 +275,14 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 
 	if len(wildcardsUsed) > 0 {
 		// TODO: Add some NSEC(3) records. https://datatracker.ietf.org/doc/html/rfc7129#section-5.3
+		// Should be in z.Callbacks.DenyExistence()
 	}
 
 	//---
 
 	if rmsg.Authoritative && Do(qmsg) {
 		var err error
-		rmsg, err = z.Callbacks.DenyExistence(rmsg, z.records)
+		rmsg, err = z.Callbacks.DenyExistence(rmsg, z.records, wildcardsUsed)
 		if err != nil {
 			return nil, err
 		}
@@ -301,123 +302,6 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 				rr.Header().Name = qname
 			}
 		}
-	}
-
-	//---
-
-	// Finish. Have some tea.
-	return rmsg, nil
-}
-
-func (z *Zone) Exchangexxx(qmsg *dns.Msg) (*dns.Msg, error) {
-	// We lower-case the name here to work with DNS 0x20 encoding.
-	qname := fqdn(qmsg.Question[0].Name)
-	qtype := qmsg.Question[0].Qtype
-
-	rmsg := new(dns.Msg)
-	rmsg.SetReply(qmsg)
-	rmsg.RecursionAvailable = false
-	rmsg.AuthenticatedData = false
-
-	/*
-		- The question name is for this zone's apex.
-			- SOA and NS types are special?
-			- DS records are special as although for this apex, it's served by this zone's parent.
-	*/
-
-	if qname == z.Name {
-		// We're looking at the zone's apex
-
-		rmsg.Authoritative = true
-
-		switch qtype {
-		case dns.TypeSOA:
-			rmsg.Answer = append(rmsg.Answer, z.SOA)
-		case dns.TypeNS:
-			for _, ns := range z.NS {
-				rmsg.Answer = append(rmsg.Answer, ns.NS)
-			}
-		case dns.TypeDS:
-			// We should not be returning a DS record for ourself.
-			// We'll make an exception for the root zone. // TODO: should we?
-			if rrset := z.GetRecords(qname, qtype); rrset != nil && qname == "." {
-				rmsg.Authoritative = true
-				rmsg.Answer = append(rmsg.Answer, rrset...)
-			}
-
-			// Returning nil, nil will pass the request up to the parent zone.
-			return nil, nil
-		default:
-			if rrset := z.GetRecords(qname, qtype); rrset != nil {
-				rmsg.Answer = append(rmsg.Answer, rrset...)
-			}
-		}
-
-	} else {
-		// Check if we have an exact match to the query
-		if rrset := z.GetRecords(qname, qtype); rrset != nil {
-			if qtype == dns.TypeNS {
-				// Then we're delegating
-				rmsg.Ns = append(rmsg.Ns, rrset...)
-			} else {
-				rmsg.Authoritative = true
-				rmsg.Answer = append(rmsg.Answer, rrset...)
-			}
-		} else {
-			// Else we might be able to delegate them in the right direction
-			// We need to all zones from the FQDN in the question, down to this zone.
-			for name := range IterateDownDomainHierarchy(qname) {
-				if !dns.IsSubDomain(z.Name, name) {
-					// Break if we're now looking at a parent of this zone.
-					break
-				} else if rrset := z.GetRecords(qname, dns.TypeNS); rrset != nil {
-					rmsg.Ns = append(rmsg.Ns, rrset...)
-					break
-				}
-			}
-		}
-	}
-
-	if len(rmsg.Answer) == 0 && len(rmsg.Ns) == 0 {
-
-		// If we've not found anything, add a SOA.
-		// TODO and perhaps a NSEC?
-		rmsg.Authoritative = true
-		rmsg.Answer = append(rmsg.Answer, z.SOA)
-
-	} else {
-		// See if we can help out with any glue.
-		glue := make([]dns.RR, 0)
-		for _, rr := range append(rmsg.Answer, rmsg.Ns...) {
-			if ns, ok := rr.(*dns.NS); ok {
-				if rrset := z.GetRecords(ns.Ns, dns.TypeA); rrset != nil {
-					glue = append(glue, rrset...)
-				} else if rrset := z.GetRecords(ns.Ns, dns.TypeAAAA); rrset != nil {
-					glue = append(glue, rrset...)
-				}
-			}
-		}
-		glue = dns.Dedup(glue, nil)
-		if len(glue) > 0 {
-			rmsg.Extra = append(rmsg.Extra, glue...)
-		}
-	}
-
-	//---
-
-	if rmsg.Authoritative && Do(qmsg) {
-		var err error
-		rmsg, err = z.Callbacks.DenyExistence(rmsg, z.records)
-		if err != nil {
-			return nil, err
-		}
-
-		rmsg, err = z.Callbacks.Sign(rmsg)
-		if err != nil {
-			return nil, err
-		}
-
-		rmsg.AuthenticatedData = true
 	}
 
 	//---

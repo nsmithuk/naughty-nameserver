@@ -7,7 +7,7 @@ type Callbacks struct {
 	Keys             func() []*dns.DNSKEY
 	Sign             func(*dns.Msg) (*dns.Msg, error)
 	DelegatedSingers func() []*dns.DS
-	DenyExistence    func(*dns.Msg, RecordStore) (*dns.Msg, error)
+	DenyExistence    func(*dns.Msg, RecordStore, synthesisedResults) (*dns.Msg, error)
 }
 
 func NewStandardCallbacks(signer Signer) *Callbacks {
