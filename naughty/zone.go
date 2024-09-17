@@ -1,7 +1,6 @@
 package naughty
 
 import (
-	"fmt"
 	"github.com/miekg/dns"
 	"strings"
 	"time"
@@ -24,16 +23,6 @@ type Zone struct {
 type RecordSet []dns.RR
 
 type RecordStore map[string]map[uint16]RecordSet
-
-type wildcardMapping struct {
-	qname    string
-	wildcard string
-}
-
-type wildcardMappingHolder struct {
-	mappings     []wildcardMapping
-	moreMappings map[string]string
-}
 
 type synthesisedResults map[string]string
 
@@ -138,13 +127,8 @@ func (z *Zone) DelegateTo(child *Zone) {
 	}
 }
 
-func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, metadata *string, wildcards []wildcardMapping, holder *wildcardMappingHolder, wildcardsUsed synthesisedResults) {
+func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, wildcardsUsed synthesisedResults) {
 	// Assume DS for qname has already been checked.
-
-	fmt.Printf("%s\n", qname)
-	fmt.Printf("%p\n", wildcardsUsed)
-	//fmt.Printf("%s\n", *metadata)
-	fmt.Println("----------------------------")
 
 	// Do we have any records in the zone that exactly matches the QName and QType?
 	if rrset := z.GetRecords(qname, qtype); rrset != nil {
@@ -154,11 +138,6 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, metad
 	}
 
 	// Do we have any wildcards that match the QName and QType?
-	// TODO: The RRSIG label count needs amending!
-	// TODO: we also need to add a NSEC(3) record into the Authority section, covering the qname.
-	// 	https://datatracker.ietf.org/doc/html/rfc7129#section-5.3
-	//if rrset := z.GetRecords("*."+z.Name, qtype); rrset != nil && qname != z.Name {
-
 	// We can only have a wildcard if there are more labels in the question than zone name (* cannot catch the apex).
 	if dns.CountLabel(qname) > dns.CountLabel(z.Name) {
 		labelIndexes := dns.Split(qname)
@@ -176,10 +155,6 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, metad
 			rmsg.Answer = append(rmsg.Answer, result...)
 
 			// Record wildcard
-			*metadata = wildcardQname + "/" + *metadata
-			wildcards = append(wildcards, wildcardMapping{qname, wildcardQname})
-			holder.mappings = append(holder.mappings, wildcardMapping{qname, wildcardQname})
-			holder.moreMappings[wildcardQname] = qname
 			wildcardsUsed[wildcardQname] = qname
 
 			return
@@ -199,13 +174,9 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, metad
 			}
 
 			// Record wildcard
-			*metadata = wildcardQname + "/" + *metadata
-			wildcards = append(wildcards, wildcardMapping{qname, wildcardQname})
-			holder.mappings = append(holder.mappings, wildcardMapping{qname, wildcardQname})
-			holder.moreMappings[wildcardQname] = qname
 			wildcardsUsed[wildcardQname] = qname
 
-			z.populateResponse(target, qtype, rmsg, metadata, wildcards, holder, wildcardsUsed)
+			z.populateResponse(target, qtype, rmsg, wildcardsUsed)
 			return
 		}
 	}
@@ -228,7 +199,7 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, metad
 				rmsg.Answer = append(rmsg.Answer, cn)
 			}
 
-			z.populateResponse(target, qtype, rmsg, metadata, wildcards, holder, wildcardsUsed)
+			z.populateResponse(target, qtype, rmsg, wildcardsUsed)
 			return
 		} else if rrset, _ := types[dns.TypeNS]; rrset != nil && qname != z.Name {
 			// Then we have an exact match on a delegation
@@ -276,19 +247,9 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 	rmsg := new(dns.Msg)
 	rmsg.SetReply(qmsg)
 
-	test := "test"
-	wcUsed := make([]wildcardMapping, 0)
-	wildcardsUsedHolder := &wildcardMappingHolder{
-		mappings:     make([]wildcardMapping, 0),
-		moreMappings: make(map[string]string),
-	}
 	wildcardsUsed := make(synthesisedResults)
 
-	z.populateResponse(qname, qtype, rmsg, &test, wcUsed, wildcardsUsedHolder, wildcardsUsed)
-
-	fmt.Printf("%p\n", wildcardsUsed)
-	//fmt.Printf("%s\n", test)
-	fmt.Println("----------------------------")
+	z.populateResponse(qname, qtype, rmsg, wildcardsUsed)
 
 	//---
 
@@ -313,7 +274,7 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 	//---
 
 	if len(wildcardsUsed) > 0 {
-		// TODO: Add some NSEC(3) records.
+		// TODO: Add some NSEC(3) records. https://datatracker.ietf.org/doc/html/rfc7129#section-5.3
 	}
 
 	//---
