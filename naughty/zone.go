@@ -2,6 +2,7 @@ package naughty
 
 import (
 	"github.com/miekg/dns"
+	"strings"
 	"time"
 )
 
@@ -138,23 +139,63 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg) (synt
 	// TODO: The RRSIG label count needs amending!
 	// TODO: we also need to add a NSEC(3) record into the Authority section, covering the qname.
 	// 	https://datatracker.ietf.org/doc/html/rfc7129#section-5.3
-	if rrset := z.GetRecords("*."+z.Name, qtype); rrset != nil {
-		result := make([]dns.RR, len(rrset))
-		for i, rr := range rrset {
-			result[i] = dns.Copy(rr)
-			result[i].Header().Name = qname
+	//if rrset := z.GetRecords("*."+z.Name, qtype); rrset != nil && qname != z.Name {
+
+	// We can only have a wildcard if there are more labels in the question than zone name (* cannot catch the apex).
+	if dns.CountLabel(qname) > dns.CountLabel(z.Name) {
+		labelIndexes := dns.Split(qname)
+
+		// Replaces the first label with *
+		wildcardQname := "*." + qname[labelIndexes[1]:]
+
+		if rrset := z.GetRecords(wildcardQname, qtype); rrset != nil {
+			result := make([]dns.RR, len(rrset))
+			for i, rr := range rrset {
+				// We take a copy as we'll be amending the header later to match teh question.
+				result[i] = dns.Copy(rr)
+			}
+			rmsg.Authoritative = true
+			rmsg.Answer = append(rmsg.Answer, result...)
+			return true
 		}
-		rmsg.Authoritative = true
-		rmsg.Answer = append(rmsg.Answer, result...)
-		return true
+		if rrset := z.GetRecords(wildcardQname, dns.TypeCNAME); rrset != nil {
+			target := rrset[0].(*dns.CNAME).Target
+			if !strings.HasSuffix(target, ".") {
+				target += "." + z.Name
+			}
+
+			rmsg.Authoritative = true
+			for _, cname := range rrset {
+				// We need to ensure the target is a fqdn
+				cn := dns.Copy(cname)
+				cn.(*dns.CNAME).Target = target
+				rmsg.Answer = append(rmsg.Answer, cn)
+			}
+
+			z.populateResponse(target, qtype, rmsg)
+			return true
+		}
 	}
 
 	// Do we have any records that match just the QName?
 	if types := z.GetTypesAndRecords(qname); types != nil {
 		// Is one of the types a CNAME?
-		if cnames, _ := types[dns.TypeCNAME]; cnames != nil {
-			// TODO: deal with this
-			return
+		if rrset, _ := types[dns.TypeCNAME]; rrset != nil {
+
+			target := rrset[0].(*dns.CNAME).Target
+			if !strings.HasSuffix(target, ".") {
+				target += "." + z.Name
+			}
+
+			rmsg.Authoritative = true
+			for _, cname := range rrset {
+				// We need to ensure the target is a fqdn
+				cn := dns.Copy(cname)
+				cn.(*dns.CNAME).Target = target
+				rmsg.Answer = append(rmsg.Answer, cn)
+			}
+
+			return z.populateResponse(target, qtype, rmsg)
 		} else if rrset, _ := types[dns.TypeNS]; rrset != nil && qname != z.Name {
 			// Then we have an exact match on a delegation
 			rmsg.Ns = append(rmsg.Ns, rrset...)
@@ -241,7 +282,13 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 	}
 
 	if synthesisedFromWildcard {
-		// Fix the record headers.
+		// We need to set the correct header name.
+		// We can't do it before we sign it though, otherwise the label count is wrong.
+		//for _, rrset := range slices.Concat(rmsg.Answer, rmsg.Ns, rmsg.Extra) {
+		//	if strings.HasPrefix(rrset.Header().Name, "*") {
+		//		rrset.Header().Name = qmsg.Question[0].Name
+		//	}
+		//}
 	}
 
 	//---
