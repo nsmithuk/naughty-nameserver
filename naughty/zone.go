@@ -35,7 +35,7 @@ type wildcardMappingHolder struct {
 	moreMappings map[string]string
 }
 
-type wildcardUsage map[string]string
+type synthesisedResults map[string]string
 
 //---
 
@@ -138,11 +138,11 @@ func (z *Zone) DelegateTo(child *Zone) {
 	}
 }
 
-func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, metadata *string, wildcards []wildcardMapping, holder *wildcardMappingHolder, wcUsage wildcardUsage) {
+func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, metadata *string, wildcards []wildcardMapping, holder *wildcardMappingHolder, wildcardsUsed synthesisedResults) {
 	// Assume DS for qname has already been checked.
 
 	fmt.Printf("%s\n", qname)
-	fmt.Printf("%p\n", wcUsage)
+	fmt.Printf("%p\n", wildcardsUsed)
 	//fmt.Printf("%s\n", *metadata)
 	fmt.Println("----------------------------")
 
@@ -180,7 +180,7 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, metad
 			wildcards = append(wildcards, wildcardMapping{qname, wildcardQname})
 			holder.mappings = append(holder.mappings, wildcardMapping{qname, wildcardQname})
 			holder.moreMappings[wildcardQname] = qname
-			wcUsage[wildcardQname] = qname
+			wildcardsUsed[wildcardQname] = qname
 
 			return
 		}
@@ -203,9 +203,9 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, metad
 			wildcards = append(wildcards, wildcardMapping{qname, wildcardQname})
 			holder.mappings = append(holder.mappings, wildcardMapping{qname, wildcardQname})
 			holder.moreMappings[wildcardQname] = qname
-			wcUsage[wildcardQname] = qname
+			wildcardsUsed[wildcardQname] = qname
 
-			z.populateResponse(target, qtype, rmsg, metadata, wildcards, holder, wcUsage)
+			z.populateResponse(target, qtype, rmsg, metadata, wildcards, holder, wildcardsUsed)
 			return
 		}
 	}
@@ -228,7 +228,7 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, metad
 				rmsg.Answer = append(rmsg.Answer, cn)
 			}
 
-			z.populateResponse(target, qtype, rmsg, metadata, wildcards, holder, wcUsage)
+			z.populateResponse(target, qtype, rmsg, metadata, wildcards, holder, wildcardsUsed)
 			return
 		} else if rrset, _ := types[dns.TypeNS]; rrset != nil && qname != z.Name {
 			// Then we have an exact match on a delegation
@@ -277,16 +277,16 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 	rmsg.SetReply(qmsg)
 
 	test := "test"
-	wildcardsUsed := make([]wildcardMapping, 0)
+	wcUsed := make([]wildcardMapping, 0)
 	wildcardsUsedHolder := &wildcardMappingHolder{
 		mappings:     make([]wildcardMapping, 0),
 		moreMappings: make(map[string]string),
 	}
-	wcUsage := make(wildcardUsage)
+	wildcardsUsed := make(synthesisedResults)
 
-	z.populateResponse(qname, qtype, rmsg, &test, wildcardsUsed, wildcardsUsedHolder, wcUsage)
+	z.populateResponse(qname, qtype, rmsg, &test, wcUsed, wildcardsUsedHolder, wildcardsUsed)
 
-	fmt.Printf("%p\n", wcUsage)
+	fmt.Printf("%p\n", wildcardsUsed)
 	//fmt.Printf("%s\n", test)
 	fmt.Println("----------------------------")
 
@@ -312,6 +312,12 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 
 	//---
 
+	if len(wildcardsUsed) > 0 {
+		// TODO: Add some NSEC(3) records.
+	}
+
+	//---
+
 	if rmsg.Authoritative && Do(qmsg) {
 		var err error
 		rmsg, err = z.Callbacks.DenyExistence(rmsg, z.records)
@@ -327,15 +333,14 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 		rmsg.AuthenticatedData = true
 	}
 
-	//if synthesisedFromWildcard {
-	//	// We need to set the correct header name.
-	//	// We can't do it before we sign it though, otherwise the label count is wrong.
-	//	//for _, rrset := range slices.Concat(rmsg.Answer, rmsg.Ns, rmsg.Extra) {
-	//	//	if strings.HasPrefix(rrset.Header().Name, "*") {
-	//	//		rrset.Header().Name = qmsg.Question[0].Name
-	//	//	}
-	//	//}
-	//}
+	// If there were any wildcards used, we need to set the correct headers.
+	for wildcard, qname := range wildcardsUsed {
+		for _, rr := range rmsg.Answer {
+			if rr.Header().Name == wildcard {
+				rr.Header().Name = qname
+			}
+		}
+	}
 
 	//---
 
