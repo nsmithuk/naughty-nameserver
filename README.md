@@ -187,6 +187,18 @@ test.clashing-keys.naughty-nameserver.com
 test.one-valid-one-invalid-rrsig.naughty-nameserver.com
 ```
 
+### Resolved using a Wildcard
+Includes the expected NSEC records
+```text
+test.wildcard.naughty-nameserver.com
+```
+
+### Chained CNAMEs with Wildcards
+Uses 3 chained CNAME records, 2 of them wildcards. And 1 wildcard A record. Includes all expected NSEC records.
+```text
+test.cname-chain.naughty-nameserver.com
+```
+
 # Licence
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 

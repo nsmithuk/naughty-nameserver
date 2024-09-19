@@ -22,13 +22,20 @@ func (t *WildcardValid) Setup(ns *naughty.Nameserver) error {
 		return err
 	}
 
+	// We'll add this record in, that'll be the record before test.
 	a := &dns.A{
+		Hdr: naughty.NewHeader(fmt.Sprintf("expected-nsec-record.%s", name), dns.TypeA),
+		A:   net.ParseIP("192.0.2.54").To4(),
+	}
+	zone.AddRecord(a)
+
+	a = &dns.A{
 		Hdr: naughty.NewHeader(fmt.Sprintf("*.%s", name), dns.TypeA),
 		A:   net.ParseIP("192.0.2.53").To4(),
 	}
 	zone.AddRecord(a)
 
-	naughty.Info(fmt.Sprintf(logFmtValid, a.Header().Name))
+	naughty.Info(fmt.Sprintf(logFmtValid, fmt.Sprintf("test.wildcard.%s", ns.BaseZoneName)))
 
 	return nil
 }

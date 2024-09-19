@@ -103,7 +103,8 @@ func (s *SignerReaderSingle) Keys() []*dns.DNSKEY {
 }
 
 func (s *SignerReaderSingle) DelegatedSingers() []*dns.DS {
-	return []*dns.DS{s.key.ToDS(s.hash)}
+	ds := s.key.ToDS(s.hash)
+	return []*dns.DS{ds}
 }
 
 func (s *SignerReaderSingle) Sign(msg *dns.Msg) (*dns.Msg, error) {

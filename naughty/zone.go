@@ -65,9 +65,11 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 
 	// Add the zone's own nameservers
 	for i, ns := range nameservers {
-		// Add the records.
-		zone.AddRecord(ns.A)
-		zone.AddRecord(ns.NS)
+		// The name servers are ns*.<base zone>. We only add glue records for <base zone>, down to the root.
+		if dns.IsSubDomain(zone.Name, ns.NS.Header().Name) {
+			zone.AddRecord(ns.A)
+			zone.AddRecord(ns.NS)
+		}
 
 		// Re-write the header to match the zone name
 		ns.NS = dns.Copy(ns.NS).(*dns.NS)
@@ -84,6 +86,17 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 	//---
 
 	return zone
+}
+
+func (z *Zone) nsRecordsMatchZone(rrset []dns.RR) bool {
+	for _, ns := range z.NS {
+		for _, rr := range rrset {
+			if rrns, ok := rr.(*dns.NS); ok && strings.EqualFold(ns.NS.Ns, rrns.Ns) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (z *Zone) GetRecords(rrname string, rrtype uint16) []dns.RR {
@@ -200,8 +213,9 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, wildc
 
 			z.populateResponse(target, qtype, rmsg, wildcardsUsed)
 			return
-		} else if rrset, _ := types[dns.TypeNS]; rrset != nil && qname != z.Name {
+		} else if rrset, _ := types[dns.TypeNS]; rrset != nil && !z.nsRecordsMatchZone(rrset) {
 			// Then we have an exact match on a delegation
+			// If the NS the same for this zone?
 			rmsg.Ns = append(rmsg.Ns, rrset...)
 			return
 		} else {
@@ -274,7 +288,7 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 
 	if rmsg.Authoritative && Do(qmsg) {
 		var err error
-		rmsg, err = z.Callbacks.DenyExistence(rmsg, z.records, wildcardsUsed)
+		rmsg, err = z.Callbacks.DenyExistence(rmsg, z, wildcardsUsed)
 		if err != nil {
 			return nil, err
 		}
@@ -287,7 +301,7 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 		rmsg.AuthenticatedData = true
 	}
 
-	// If there were any wildcards used, we need to set the correct headers.
+	// If there were any wildcards used, we need to set the correct headers. Only in Answer section.
 	for wildcard, qname := range wildcardsUsed {
 		for _, rr := range rmsg.Answer {
 			if rr.Header().Name == wildcard {

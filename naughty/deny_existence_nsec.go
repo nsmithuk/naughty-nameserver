@@ -7,7 +7,9 @@ import (
 	"strings"
 )
 
-func DefaultDenyExistenceNSEC(msg *dns.Msg, store RecordStore, wildcardsUsed synthesisedResults) (*dns.Msg, error) {
+func DefaultDenyExistenceNSEC(msg *dns.Msg, z *Zone, wildcardsUsed synthesisedResults) (*dns.Msg, error) {
+	store := z.records
+
 	if msg.Rcode == dns.RcodeNameError {
 		records := make([]dns.RR, 0, 2)
 		records = append(records, store.getNSECRecord(msg.Question[0].Name))
@@ -20,7 +22,11 @@ func DefaultDenyExistenceNSEC(msg *dns.Msg, store RecordStore, wildcardsUsed syn
 	}
 
 	if len(wildcardsUsed) > 0 {
-		// TODO: Add some NSEC(3) records. https://datatracker.ietf.org/doc/html/rfc7129#section-5.3
+		// https://datatracker.ietf.org/doc/html/rfc7129#section-5.3
+		// When a wildcard was used, we need to add a NSEC record to prove the exact match on teh QName didn't exist.
+		for _, qname := range wildcardsUsed {
+			msg.Ns = append(msg.Ns, store.getNSECRecord(qname))
+		}
 	}
 
 	return msg, nil

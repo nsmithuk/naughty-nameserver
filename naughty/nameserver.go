@@ -35,6 +35,8 @@ func NewNameserver(baseZoneName string, nsIPv4s []string) *Nameserver {
 	for i, ip := range nsIPv4s {
 		host := fmt.Sprintf("ns%d.%s", i+1, baseZoneName)
 
+		Info(fmt.Sprintf("Nameserver %d: %s\n", i+1, host))
+
 		addr := net.ParseIP(ip).To4()
 		if addr == nil {
 			panic(fmt.Sprintf("invalid ip address %s", ip))
