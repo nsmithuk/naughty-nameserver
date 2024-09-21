@@ -32,6 +32,9 @@ func fqdn(name string) string {
 // wildcardName replaces the first label with *
 func wildcardName(name string) string {
 	labelIndexes := dns.Split(name)
+	if len(labelIndexes) < 2 {
+		return "*."
+	}
 	return "*." + name[labelIndexes[1]:]
 }
 

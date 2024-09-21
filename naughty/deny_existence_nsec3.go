@@ -10,24 +10,25 @@ import (
 
 func DefaultDenyExistenceNSEC3(msg *dns.Msg, z *Zone, wildcardsUsed synthesisedResults) (*dns.Msg, error) {
 	store := z.records
+	qname := fqdn(msg.Question[0].Name)
 
 	if msg.Rcode == dns.RcodeNameError {
 		records := make([]dns.RR, 0, 3)
 
 		// Closest Encloser
-		records = append(records, store.getNSEC3ClosestEncloserRecord(msg.Question[0].Name, z.Name))
+		records = append(records, store.getNSEC3ClosestEncloserRecord(qname, z.Name))
 
 		// The specific QName
-		records = append(records, store.getNSEC3Record(msg.Question[0].Name, z.Name))
+		records = append(records, store.getNSEC3Record(qname, z.Name))
 
 		// The wildcard
-		records = append(records, store.getNSEC3Record(wildcardName(msg.Question[0].Name), z.Name))
+		records = append(records, store.getNSEC3Record(wildcardName(qname), z.Name))
 
 		records = dns.Dedup(records, nil)
 		msg.Ns = append(msg.Ns, records...)
 	} else if len(msg.Ns) == 1 && msg.Ns[0].Header().Rrtype == dns.TypeSOA {
 		// NODATA - we expect a single SOA record in Authority.
-		msg.Ns = append(msg.Ns, store.getNSEC3Record(msg.Question[0].Name, z.Name))
+		msg.Ns = append(msg.Ns, store.getNSEC3Record(qname, z.Name))
 	}
 
 	if len(wildcardsUsed) > 0 {
@@ -101,7 +102,7 @@ func (store RecordStore) getNSEC3Record(name, zoneName string) dns.RR {
 
 	nextRecordHash := names[(n+1)%len(names)].digest
 	nsec3 := &dns.NSEC3{
-		Hdr:        NewHeader(hashedName+"."+zoneName, dns.TypeNSEC3),
+		Hdr:        NewHeader(names[n].digest+"."+zoneName, dns.TypeNSEC3),
 		TypeBitMap: typeBitMap,
 		Hash:       dns.SHA1,
 		Flags:      0,

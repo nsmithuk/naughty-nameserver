@@ -9,16 +9,17 @@ import (
 
 func DefaultDenyExistenceNSEC(msg *dns.Msg, z *Zone, wildcardsUsed synthesisedResults) (*dns.Msg, error) {
 	store := z.records
+	qname := fqdn(msg.Question[0].Name)
 
 	if msg.Rcode == dns.RcodeNameError {
 		records := make([]dns.RR, 0, 2)
-		records = append(records, store.getNSECRecord(msg.Question[0].Name))
-		records = append(records, store.getNSECRecord(wildcardName(msg.Question[0].Name)))
+		records = append(records, store.getNSECRecord(qname))
+		records = append(records, store.getNSECRecord(wildcardName(qname)))
 		records = dns.Dedup(records, nil)
 		msg.Ns = append(msg.Ns, records...)
 	} else if len(msg.Ns) == 1 && msg.Ns[0].Header().Rrtype == dns.TypeSOA {
 		// NODATA - we expect a single SOA record in Authority.
-		msg.Ns = append(msg.Ns, store.getNSECRecord(msg.Question[0].Name))
+		msg.Ns = append(msg.Ns, store.getNSECRecord(qname))
 	}
 
 	if len(wildcardsUsed) > 0 {
