@@ -25,14 +25,21 @@ func (t *InvalidRRSigSignature) Setup(ns *naughty.Nameserver) error {
 
 	name := dns.Fqdn(fmt.Sprintf("rrsig-signature-invalid.%s", ns.BaseZoneName))
 
-	callbacks := naughty.NewStandardCallbacks(naughty.NewSignerAutogenSingleDefault(name))
+	signer := naughty.NewSignerAutogenSingleDefault(name)
+	callbacks := naughty.NewStandardCallbacks(signer)
 
-	callbacks.PreSigning = t.PreSigning
-	callbacks.PostSigning = t.PostSigning
+	callbacks.Sign = func(msg *dns.Msg) (*dns.Msg, error) {
+		t.answer.(*dns.A).A = t.invalid
+		signedMsg, err := signer.Sign(msg)
+		t.answer.(*dns.A).A = t.valid
+		return signedMsg, err
+	}
 
 	zone := naughty.NewZone(name, ns.NSRecords, callbacks)
-	ns.BaseZone.DelegateTo(zone)
-	ns.Zones[name] = zone
+	if err := ns.RegisterZone(zone); err != nil {
+		naughty.Warn(fmt.Sprintf("Failed to register zone '%s': %s", name, err.Error()))
+		return err
+	}
 
 	//---
 
@@ -47,19 +54,7 @@ func (t *InvalidRRSigSignature) Setup(ns *naughty.Nameserver) error {
 	}
 	zone.AddRecord(t.answer)
 
-	naughty.Log.Infof(logFmtInvalid, t.answer.Header().Name)
+	naughty.Info(fmt.Sprintf(logFmtInvalid, t.answer.Header().Name))
 
 	return nil
-}
-
-func (t *InvalidRRSigSignature) PreSigning(msg *dns.Msg) *dns.Msg {
-	// Change the answer to something else.
-	t.answer.(*dns.A).A = t.invalid
-	return msg
-}
-
-func (t *InvalidRRSigSignature) PostSigning(msg *dns.Msg) *dns.Msg {
-	// Revert back to the original.
-	t.answer.(*dns.A).A = t.valid
-	return msg
 }

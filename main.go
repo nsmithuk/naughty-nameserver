@@ -19,6 +19,21 @@ This starts a basic Naughty DNS Server on port 53.
 
 var nameserver *naughty.Nameserver
 
+func init() {
+	naughty.Info = func(s string) {
+		fmt.Print(s)
+	}
+	naughty.Debug = func(s string) {
+		fmt.Print(s)
+	}
+	naughty.Warn = func(s string) {
+		fmt.Print(s)
+	}
+	naughty.Query = func(s string) {
+		fmt.Print(s)
+	}
+}
+
 func main() {
 	domain := dns.Fqdn("naughty-nameserver.com.")
 	ns1 := "35.178.119.145"
@@ -72,7 +87,7 @@ func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 	//---
 
-	msg, err := nameserver.Query(r)
+	msg, err := nameserver.Exchange(r)
 	if err != nil {
 		log.Printf("Failed to generate response: %v\n", err)
 	}

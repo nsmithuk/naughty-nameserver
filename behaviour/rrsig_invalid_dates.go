@@ -31,12 +31,14 @@ func (t *InvalidRRSigDates) Setup(ns *naughty.Nameserver) error {
 
 		callbacks := naughty.NewStandardCallbacks(signer)
 		callbacks.Sign = func(msg *dns.Msg) (*dns.Msg, error) {
-			return t.Sign(msg, test.typ, signer)
+			return naughty.SignMsg(signer.Key(), signer.Signer(), msg, t.SignRRSet(test.typ))
 		}
 
 		zone := naughty.NewZone(test.name, ns.NSRecords, callbacks)
-		ns.BaseZone.DelegateTo(zone)
-		ns.Zones[test.name] = zone
+		if err := ns.RegisterZone(zone); err != nil {
+			naughty.Warn(fmt.Sprintf("Failed to register zone '%s': %s", test.name, err.Error()))
+			return err
+		}
 
 		a := &dns.A{
 			Hdr: naughty.NewHeader(fmt.Sprintf("test.%s", test.name), dns.TypeA),
@@ -44,14 +46,10 @@ func (t *InvalidRRSigDates) Setup(ns *naughty.Nameserver) error {
 		}
 		zone.AddRecord(a)
 
-		naughty.Log.Infof(logFmtInvalid, a.Header().Name)
+		naughty.Info(fmt.Sprintf(logFmtInvalid, a.Header().Name))
 	}
 
 	return nil
-}
-
-func (t *InvalidRRSigDates) Sign(msg *dns.Msg, typ int, signer *naughty.SignerAutogenSingle) (*dns.Msg, error) {
-	return naughty.SignMsg(signer.Key(), signer.Signer(), msg, t.SignRRSet(typ))
 }
 
 func (t *InvalidRRSigDates) SignRRSet(typ int) naughty.SignRRSetSigner {

@@ -26,8 +26,10 @@ func (t *ZskDS) Setup(ns *naughty.Nameserver) error {
 	}
 
 	zone := naughty.NewZone(name, ns.NSRecords, callbacks)
-	ns.BaseZone.DelegateTo(zone)
-	ns.Zones[name] = zone
+	if err := ns.RegisterZone(zone); err != nil {
+		naughty.Warn(fmt.Sprintf("Failed to register zone '%s': %s", name, err.Error()))
+		return err
+	}
 
 	a := &dns.A{
 		Hdr: naughty.NewHeader(fmt.Sprintf("test.%s", name), dns.TypeA),
@@ -35,7 +37,7 @@ func (t *ZskDS) Setup(ns *naughty.Nameserver) error {
 	}
 	zone.AddRecord(a)
 
-	naughty.Log.Infof(logFmtInvalid, a.Header().Name)
+	naughty.Info(fmt.Sprintf(logFmtInvalid, a.Header().Name))
 
 	return nil
 
