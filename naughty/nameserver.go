@@ -151,7 +151,8 @@ func (ns *Nameserver) buildInitialZones() {
 			- .
 	*/
 	var last *Zone
-	for name := range IterateDownDomainHierarchy(ns.BaseZoneName) {
+	//for name := range IterateDownDomainHierarchy(ns.BaseZoneName) {
+	for _, name := range []string{ns.BaseZoneName} {
 		var signer Signer
 		switch name {
 		case ns.BaseZoneName:

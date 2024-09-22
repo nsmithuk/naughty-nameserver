@@ -35,9 +35,9 @@ func init() {
 }
 
 func main() {
-	domain := dns.Fqdn("naughty-nameserver.com.")
-	ns1 := "35.178.119.145"
-	ns2 := "35.178.119.145"
+	domain := dns.Fqdn("naughty.qazz.uk.")
+	ns1 := "13.40.162.160"
+	ns2 := "13.40.162.160"
 
 	nameserver = naughty.NewNameserver(domain, []string{ns1, ns2})
 
@@ -84,6 +84,7 @@ func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 	if a != nil {
 		log.Printf("Request from %s. %s\n", a.String(), port)
 	}
+	log.Printf("%s\n", r.String())
 
 	//---
 
