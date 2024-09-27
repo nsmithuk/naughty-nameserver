@@ -90,6 +90,9 @@ func (store RecordStore) getNSEC3Record(name, zoneName string) dns.RR {
 		}
 	}
 
+	// Note [...] the NSEC3 type itself will never be present in the Type Bit Maps.
+	// https://datatracker.ietf.org/doc/html/rfc5155#section-7.1
+
 	types := store[names[n].original]
 	typeBitMap := make([]uint16, len(types)+1)
 	i = 0
@@ -97,7 +100,7 @@ func (store RecordStore) getNSEC3Record(name, zoneName string) dns.RR {
 		typeBitMap[i] = t
 		i++
 	}
-	typeBitMap[i] = dns.TypeNSEC3 // Attach this on.
+	//typeBitMap[i] = dns.TypeNSEC3 // See above comment.
 	slices.Sort(typeBitMap)
 
 	nextRecordHash := names[(n+1)%len(names)].digest
