@@ -41,7 +41,7 @@ func main() {
 
 	nameserver = naughty.NewNameserver(domain, []string{ns1, ns2})
 
-	err := nameserver.AddBehaviours(behaviour.GetAllBehaviours())
+	err := nameserver.AddBehaviours(behaviour.GeBehaviours())
 	if err != nil {
 		log.Fatal(err)
 	}

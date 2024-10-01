@@ -1,5 +1,9 @@
 package naughty
 
-type BehaviourFactory interface {
+type OldBehaviourFactory interface {
 	Setup(*Nameserver) error
+}
+
+type BehaviourFactory interface {
+	Setup(*Nameserver) []*Zone
 }

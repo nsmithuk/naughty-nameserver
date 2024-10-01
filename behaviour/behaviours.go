@@ -1,28 +1,14 @@
 package behaviour
 
-import "github.com/nsmithuk/naughty-nameserver/naughty"
-
-const (
-	logFmtValid   = "valid:\t%s\n"
-	logFmtInvalid = "invalid:\t%s\n"
+import (
+	"github.com/nsmithuk/naughty-nameserver/behaviour/invalid_positive"
+	"github.com/nsmithuk/naughty-nameserver/behaviour/valid_positive"
+	"github.com/nsmithuk/naughty-nameserver/naughty"
 )
 
-func GetAllBehaviours() map[string]naughty.BehaviourFactory {
-	return map[string]naughty.BehaviourFactory{
-		"all-valid":             new(AllValidAlgorithms),
-		"invalid-rrsig":         new(InvalidRRSigSignature),
-		"zsk-only":              new(ZskOnly),
-		"two-valid-zsks":        new(TwoValidZsks),
-		"invalid-rrsig-dates":   new(InvalidRRSigDates),
-		"clashing-keys":         new(ClashingKeys),
-		"incorrect-ds":          new(IncorrectDS),
-		"missing-ds":            new(MissingDS),
-		"multiple-ds":           new(MultipleDS),
-		"missmatch-ds":          new(MissmatchDS),
-		"zsk-ds":                new(ZskDS),
-		"one-valid-one-invalid": new(ValidInvalidRRSig),
-		"wildcard-valid":        new(WildcardValid),
-		"cname-chain":           new(CnameChain),
-		"simple-cname":          new(SimpleCname),
+func GeBehaviours() []naughty.BehaviourFactory {
+	return []naughty.BehaviourFactory{
+		new(valid_positive.AlgorithmCombinations),
+		new(invalid_positive.MissingNSEC3RecordForWildcard),
 	}
 }

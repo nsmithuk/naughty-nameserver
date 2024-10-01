@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func DefaultDenyExistenceNSEC(msg *dns.Msg, z *Zone, wildcardsUsed synthesisedResults) (*dns.Msg, error) {
+func DefaultDenyExistenceNSEC(msg *dns.Msg, z *Zone, wildcardsUsed SynthesisedResults) (*dns.Msg, error) {
 	store := z.records
 	qname := fqdn(msg.Question[0].Name)
 

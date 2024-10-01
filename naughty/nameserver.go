@@ -81,11 +81,19 @@ func (ns *Nameserver) RegisterToZone(new *Zone, existing *Zone) error {
 	return nil
 }
 
-func (ns *Nameserver) AddBehaviours(behaviours map[string]BehaviourFactory) error {
+func (ns *Nameserver) AddBehaviours(behaviours []BehaviourFactory) error {
+	var err error
 	for _, b := range behaviours {
-		if err := b.Setup(ns); err != nil {
-			return err
+
+		zones := b.Setup(ns)
+
+		for _, z := range zones {
+			err = ns.RegisterZone(z)
+			if err != nil {
+				return err
+			}
 		}
+
 	}
 	return nil
 }

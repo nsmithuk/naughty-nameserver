@@ -24,7 +24,7 @@ type RecordSet []dns.RR
 
 type RecordStore map[string]map[uint16]RecordSet
 
-type synthesisedResults map[string]string
+type SynthesisedResults map[string]string
 
 //---
 
@@ -140,7 +140,7 @@ func (z *Zone) DelegateTo(child *Zone) {
 	}
 }
 
-func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, wildcardsUsed synthesisedResults) {
+func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, wildcardsUsed SynthesisedResults) {
 	// Assume DS for qname has already been checked.
 
 	// Do we have any records in the zone that exactly matches the QName and QType?
@@ -260,7 +260,7 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 	rmsg := new(dns.Msg)
 	rmsg.SetReply(qmsg)
 
-	wildcardsUsed := make(synthesisedResults)
+	wildcardsUsed := make(SynthesisedResults)
 
 	z.populateResponse(qname, qtype, rmsg, wildcardsUsed)
 

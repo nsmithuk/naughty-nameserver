@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func DefaultDenyExistenceNSEC3(msg *dns.Msg, z *Zone, wildcardsUsed synthesisedResults) (*dns.Msg, error) {
+func DefaultDenyExistenceNSEC3(msg *dns.Msg, z *Zone, wildcardsUsed SynthesisedResults) (*dns.Msg, error) {
 	store := z.records
 	qname := fqdn(msg.Question[0].Name)
 
@@ -33,7 +33,7 @@ func DefaultDenyExistenceNSEC3(msg *dns.Msg, z *Zone, wildcardsUsed synthesisedR
 
 	if len(wildcardsUsed) > 0 {
 		// https://datatracker.ietf.org/doc/html/rfc7129#section-5.3
-		// When a wildcard was used, we need to add a NSEC record to prove the exact match on teh QName didn't exist.
+		// When a wildcard was used, we need to add a NSEC record to prove the exact match on the QName didn't exist.
 		for _, qname := range wildcardsUsed {
 			msg.Ns = append(msg.Ns, store.getNSEC3Record(qname, z.Name))
 		}
@@ -94,7 +94,7 @@ func (store RecordStore) getNSEC3Record(name, zoneName string) dns.RR {
 	// https://datatracker.ietf.org/doc/html/rfc5155#section-7.1
 
 	types := store[names[n].original]
-	typeBitMap := make([]uint16, len(types)+1)
+	typeBitMap := make([]uint16, len(types))
 	i = 0
 	for t, _ := range types {
 		typeBitMap[i] = t

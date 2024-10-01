@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+/*
+   The NS RRset that appears at the zone apex name MUST be signed, but
+   the NS RRsets that appear at delegation points (that is, the NS
+   RRsets in the parent zone that delegate the name to the child zone's
+   name servers) MUST NOT be signed.  Glue address RRsets associated
+   with delegations MUST NOT be signed.
+*/
+
 type Signer interface {
 	Keys() []*dns.DNSKEY
 	Sign(*dns.Msg) (*dns.Msg, error)
