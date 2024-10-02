@@ -9,7 +9,7 @@ import (
 )
 
 func DefaultDenyExistenceNSEC3(msg *dns.Msg, z *Zone, wildcardsUsed SynthesisedResults) (*dns.Msg, error) {
-	store := z.records
+	store := z.Records
 	qname := fqdn(msg.Question[0].Name)
 
 	if msg.Rcode == dns.RcodeNameError {
@@ -19,23 +19,23 @@ func DefaultDenyExistenceNSEC3(msg *dns.Msg, z *Zone, wildcardsUsed SynthesisedR
 		records = append(records, store.getNSEC3ClosestEncloserRecord(qname, z.Name))
 
 		// The specific QName
-		records = append(records, store.getNSEC3Record(qname, z.Name))
+		records = append(records, store.GetNSEC3Record(qname, z.Name))
 
 		// The wildcard
-		records = append(records, store.getNSEC3Record(wildcardName(qname), z.Name))
+		records = append(records, store.GetNSEC3Record(wildcardName(qname), z.Name))
 
 		records = dns.Dedup(records, nil)
 		msg.Ns = append(msg.Ns, records...)
 	} else if len(msg.Ns) == 1 && msg.Ns[0].Header().Rrtype == dns.TypeSOA {
 		// NODATA - we expect a single SOA record in Authority.
-		msg.Ns = append(msg.Ns, store.getNSEC3Record(qname, z.Name))
+		msg.Ns = append(msg.Ns, store.GetNSEC3Record(qname, z.Name))
 	}
 
 	if len(wildcardsUsed) > 0 {
 		// https://datatracker.ietf.org/doc/html/rfc7129#section-5.3
 		// When a wildcard was used, we need to add a NSEC record to prove the exact match on the QName didn't exist.
 		for _, qname := range wildcardsUsed {
-			msg.Ns = append(msg.Ns, store.getNSEC3Record(qname, z.Name))
+			msg.Ns = append(msg.Ns, store.GetNSEC3Record(qname, z.Name))
 		}
 	}
 
@@ -45,7 +45,7 @@ func DefaultDenyExistenceNSEC3(msg *dns.Msg, z *Zone, wildcardsUsed SynthesisedR
 func (store RecordStore) getNSEC3ClosestEncloserRecord(name, zoneName string) dns.RR {
 	for _, i := range dns.Split(name) {
 		if _, ok := store[name[i:]]; ok {
-			return store.getNSEC3Record(name[i:], zoneName)
+			return store.GetNSEC3Record(name[i:], zoneName)
 		}
 	}
 
@@ -57,7 +57,7 @@ type nsec3Map struct {
 	original string
 }
 
-func (store RecordStore) getNSEC3Record(name, zoneName string) dns.RR {
+func (store RecordStore) GetNSEC3Record(name, zoneName string) dns.RR {
 	nsec3Salt := "abcdef"
 	nsec3Iterations := uint16(2)
 

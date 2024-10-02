@@ -8,7 +8,7 @@ import (
 )
 
 func DefaultDenyExistenceNSEC(msg *dns.Msg, z *Zone, wildcardsUsed SynthesisedResults) (*dns.Msg, error) {
-	store := z.records
+	store := z.Records
 	qname := fqdn(msg.Question[0].Name)
 
 	if msg.Rcode == dns.RcodeNameError {

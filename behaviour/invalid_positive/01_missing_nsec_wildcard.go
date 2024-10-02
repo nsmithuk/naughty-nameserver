@@ -10,9 +10,9 @@ import (
 
 // IP 1
 
-type MissingNSEC3RecordForWildcard struct{}
+type MissingNSECRecordForWildcard struct{}
 
-func (r *MissingNSEC3RecordForWildcard) Setup(ns *naughty.Nameserver) []*naughty.Zone {
+func (r *MissingNSECRecordForWildcard) Setup(ns *naughty.Nameserver) []*naughty.Zone {
 
 	name := dns.Fqdn(fmt.Sprintf("nsec-missing-with-wildcard.%s", ns.BaseZoneName))
 
@@ -22,6 +22,8 @@ func (r *MissingNSEC3RecordForWildcard) Setup(ns *naughty.Nameserver) []*naughty
 
 	// We stop any NSEC records being returned.
 	callbacks.DenyExistence = func(msg *dns.Msg, z *naughty.Zone, wildcardsUsed naughty.SynthesisedResults) (*dns.Msg, error) {
+		store := z.Records
+		msg.Ns = append(msg.Ns, store.GetNSEC3Record(fmt.Sprintf("not-the-correct-qname.%s", name), z.Name))
 		return msg, nil
 	}
 
@@ -40,7 +42,7 @@ func (r *MissingNSEC3RecordForWildcard) Setup(ns *naughty.Nameserver) []*naughty
 	}
 	zone.AddRecord(a)
 
-	naughty.Info(fmt.Sprintf(logging.LogFmtValid, fmt.Sprintf("test.%s", name)))
+	naughty.Info(fmt.Sprintf(logging.LogFmtInvalid, fmt.Sprintf("test.%s", name)))
 
 	return []*naughty.Zone{zone}
 }

@@ -17,7 +17,7 @@ type Zone struct {
 	//records map[RRSetKey]RecordSet
 
 	// a map of name, then type
-	records RecordStore
+	Records RecordStore
 }
 
 type RecordSet []dns.RR
@@ -45,7 +45,7 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 		//	nsec3Iterations: 2,
 		//	origin:          name,
 		//},
-		records: make(RecordStore),
+		Records: make(RecordStore),
 
 		SOA: &dns.SOA{
 			Hdr:     NewHeader(name, dns.TypeSOA),
@@ -100,12 +100,12 @@ func (z *Zone) nsRecordsMatchZone(rrset []dns.RR) bool {
 }
 
 func (z *Zone) GetRecords(rrname string, rrtype uint16) []dns.RR {
-	rrset, _ := z.records[rrname][rrtype]
+	rrset, _ := z.Records[rrname][rrtype]
 	return rrset
 }
 
 func (z *Zone) GetTypesAndRecords(rrname string) map[uint16]RecordSet {
-	rrset, _ := z.records[rrname]
+	rrset, _ := z.Records[rrname]
 	return rrset
 }
 
@@ -113,15 +113,15 @@ func (z *Zone) AddRecord(r dns.RR) {
 	qname := fqdn(r.Header().Name)
 	qtype := r.Header().Rrtype
 
-	if _, ok := z.records[qname]; !ok {
-		z.records[qname] = make(map[uint16]RecordSet)
+	if _, ok := z.Records[qname]; !ok {
+		z.Records[qname] = make(map[uint16]RecordSet)
 	}
-	if _, ok := z.records[qname][qtype]; !ok {
-		z.records[qname][qtype] = make(RecordSet, 0, 1)
+	if _, ok := z.Records[qname][qtype]; !ok {
+		z.Records[qname][qtype] = make(RecordSet, 0, 1)
 	}
 
-	z.records[qname][qtype] = append(z.records[qname][qtype], r)
-	z.records[qname][qtype] = dns.Dedup(z.records[qname][qtype], nil)
+	z.Records[qname][qtype] = append(z.Records[qname][qtype], r)
+	z.Records[qname][qtype] = dns.Dedup(z.Records[qname][qtype], nil)
 }
 
 func (z *Zone) AddRecords(r []dns.RR) {
