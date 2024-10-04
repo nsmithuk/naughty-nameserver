@@ -143,7 +143,7 @@ func (ns *Nameserver) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 	rmsg.SetReply(qmsg)
 	rmsg.Authoritative = false
 	rmsg.RecursionAvailable = false
-	rmsg.Rcode = dns.RcodeNameError
+	rmsg.Rcode = dns.RcodeRefused
 
 	return rmsg, fmt.Errorf("no response found for %s", name)
 }

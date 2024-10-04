@@ -8,6 +8,13 @@ import (
 	"strings"
 )
 
+const (
+	// Do not change these - some tests assume these specific valuse.
+
+	Nsec3Salt       = "abcdef"
+	Nsec3Iterations = uint16(2)
+)
+
 func DefaultDenyExistenceNSEC3(msg *dns.Msg, z *Zone, wildcardsUsed SynthesisedResults) (*dns.Msg, error) {
 	store := z.Records
 	qname := fqdn(msg.Question[0].Name)
@@ -16,13 +23,13 @@ func DefaultDenyExistenceNSEC3(msg *dns.Msg, z *Zone, wildcardsUsed SynthesisedR
 		records := make([]dns.RR, 0, 3)
 
 		// Closest Encloser
-		records = append(records, store.getNSEC3ClosestEncloserRecord(qname, z.Name))
+		records = append(records, store.GetNSEC3ClosestEncloserRecord(qname, z.Name))
 
 		// The specific QName
 		records = append(records, store.GetNSEC3Record(qname, z.Name))
 
 		// The wildcard
-		records = append(records, store.GetNSEC3Record(wildcardName(qname), z.Name))
+		records = append(records, store.GetNSEC3Record(WildcardName(qname), z.Name))
 
 		records = dns.Dedup(records, nil)
 		msg.Ns = append(msg.Ns, records...)
@@ -39,10 +46,15 @@ func DefaultDenyExistenceNSEC3(msg *dns.Msg, z *Zone, wildcardsUsed SynthesisedR
 		}
 	}
 
+	// If we're delegating, we expect a DS record.
+	if countRecordsOfType(msg.Ns, dns.TypeNS) > 0 && countRecordsOfType(msg.Ns, dns.TypeDS) == 0 {
+		msg.Ns = append(msg.Ns, store.GetNSEC3Record(qname, z.Name))
+	}
+
 	return msg, nil
 }
 
-func (store RecordStore) getNSEC3ClosestEncloserRecord(name, zoneName string) dns.RR {
+func (store RecordStore) GetNSEC3ClosestEncloserRecord(name, zoneName string) dns.RR {
 	for _, i := range dns.Split(name) {
 		if _, ok := store[name[i:]]; ok {
 			return store.GetNSEC3Record(name[i:], zoneName)
@@ -58,15 +70,12 @@ type nsec3Map struct {
 }
 
 func (store RecordStore) GetNSEC3Record(name, zoneName string) dns.RR {
-	nsec3Salt := "abcdef"
-	nsec3Iterations := uint16(2)
-
 	names := make([]nsec3Map, len(store))
 	i := 0
 	for k, _ := range store {
 		names[i] = nsec3Map{
 			original: k,
-			digest:   strings.ToLower(dns.HashName(k, dns.SHA1, nsec3Iterations, nsec3Salt)),
+			digest:   strings.ToLower(dns.HashName(k, dns.SHA1, Nsec3Iterations, Nsec3Salt)),
 		}
 		i++
 	}
@@ -74,7 +83,7 @@ func (store RecordStore) GetNSEC3Record(name, zoneName string) dns.RR {
 		return strings.Compare(a.digest, b.digest)
 	})
 
-	hashedName := strings.ToLower(dns.HashName(name, dns.SHA1, nsec3Iterations, nsec3Salt))
+	hashedName := strings.ToLower(dns.HashName(name, dns.SHA1, Nsec3Iterations, Nsec3Salt))
 
 	// If found, n tells us where the matched record is.
 	// If not found, n tells us where the record would be, thus the NSEC record n-1.
@@ -85,7 +94,6 @@ func (store RecordStore) GetNSEC3Record(name, zoneName string) dns.RR {
 	if !found {
 		n--
 		if n < 0 {
-			// TODO: I suspect this is an error as nothing should be before the zone apex?
 			n = len(names) - 1
 		}
 	}
@@ -109,9 +117,9 @@ func (store RecordStore) GetNSEC3Record(name, zoneName string) dns.RR {
 		TypeBitMap: typeBitMap,
 		Hash:       dns.SHA1,
 		Flags:      0,
-		Iterations: nsec3Iterations,
-		SaltLength: uint8(hex.DecodedLen(len(nsec3Salt))),
-		Salt:       nsec3Salt,
+		Iterations: Nsec3Iterations,
+		SaltLength: uint8(hex.DecodedLen(len(Nsec3Salt))),
+		Salt:       Nsec3Salt,
 		NextDomain: nextRecordHash,
 		HashLength: uint8(base32.StdEncoding.DecodedLen(len(nextRecordHash))),
 	}

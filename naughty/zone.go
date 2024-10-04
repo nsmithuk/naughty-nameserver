@@ -155,7 +155,7 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, wildc
 	if dns.CountLabel(qname) > dns.CountLabel(z.Name) {
 
 		// Replaces the first label with *
-		wildcardQname := wildcardName(qname)
+		wildcardQname := WildcardName(qname)
 
 		if rrset := z.GetRecords(wildcardQname, qtype); rrset != nil {
 			result := make([]dns.RR, len(rrset))
@@ -217,6 +217,10 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, wildc
 			// Then we have an exact match on a delegation
 			// If the NS the same for this zone?
 			rmsg.Ns = append(rmsg.Ns, rrset...)
+			// And do we have DS records?
+			if rrset := z.GetRecords(qname, dns.TypeDS); rrset != nil {
+				rmsg.Ns = append(rmsg.Ns, rrset...)
+			}
 			return
 		} else {
 			// NODATA
@@ -235,6 +239,10 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, wildc
 		if rrset := z.GetRecords(name, dns.TypeNS); rrset != nil {
 			// We're delegating...
 			rmsg.Ns = append(rmsg.Ns, rrset...)
+			// And do we have DS records?
+			if rrset := z.GetRecords(name, dns.TypeDS); rrset != nil {
+				rmsg.Ns = append(rmsg.Ns, rrset...)
+			}
 			return
 		}
 	}
@@ -286,7 +294,8 @@ func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 
 	//---
 
-	if rmsg.Authoritative && Do(qmsg) {
+	//if rmsg.Authoritative && Do(qmsg) {
+	if Do(qmsg) {
 		var err error
 		rmsg, err = z.Callbacks.DenyExistence(rmsg, z, wildcardsUsed)
 		if err != nil {

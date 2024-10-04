@@ -14,7 +14,7 @@ func DefaultDenyExistenceNSEC(msg *dns.Msg, z *Zone, wildcardsUsed SynthesisedRe
 	if msg.Rcode == dns.RcodeNameError {
 		records := make([]dns.RR, 0, 2)
 		records = append(records, store.getNSECRecord(qname))
-		records = append(records, store.getNSECRecord(wildcardName(qname)))
+		records = append(records, store.getNSECRecord(WildcardName(qname)))
 		records = dns.Dedup(records, nil)
 		msg.Ns = append(msg.Ns, records...)
 	} else if len(msg.Ns) == 1 && msg.Ns[0].Header().Rrtype == dns.TypeSOA {
@@ -28,6 +28,11 @@ func DefaultDenyExistenceNSEC(msg *dns.Msg, z *Zone, wildcardsUsed SynthesisedRe
 		for _, qname := range wildcardsUsed {
 			msg.Ns = append(msg.Ns, store.getNSECRecord(qname))
 		}
+	}
+
+	// If we're delegating, we expect a DS record.
+	if countRecordsOfType(msg.Ns, dns.TypeNS) > 0 && countRecordsOfType(msg.Ns, dns.TypeDS) == 0 {
+		msg.Ns = append(msg.Ns, store.getNSECRecord(qname))
 	}
 
 	return msg, nil
@@ -52,7 +57,6 @@ func (store RecordStore) getNSECRecord(name string) dns.RR {
 	if !found {
 		n--
 		if n < 0 {
-			// TODO: I suspect this is an error as nothing should be before the zone apex?
 			n = len(names) - 1
 		}
 	}

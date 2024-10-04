@@ -29,8 +29,8 @@ func fqdn(name string) string {
 	return dns.Fqdn(strings.ToLower(name))
 }
 
-// wildcardName replaces the first label with *
-func wildcardName(name string) string {
+// WildcardName replaces the first label with *
+func WildcardName(name string) string {
 	labelIndexes := dns.Split(name)
 	if len(labelIndexes) < 2 {
 		return "*."
@@ -84,6 +84,16 @@ func GroupRecordsByNameAndType(rrset []dns.RR) map[string]map[uint16][]dns.RR {
 	}
 
 	return namesAndType
+}
+
+func countRecordsOfType(rr []dns.RR, t uint16) uint8 {
+	count := uint8(0)
+	for _, record := range rr {
+		if record.Header().Rrtype == t {
+			count++
+		}
+	}
+	return count
 }
 
 // Do Has the DO bit been set on the question

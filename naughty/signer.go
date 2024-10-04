@@ -53,26 +53,6 @@ func SignMsg(key *dns.DNSKEY, signer crypto.Signer, msg *dns.Msg, rrsetSigner Si
 		}
 	}
 
-	//for _, rrset := range GroupRecordsByType(msg.Answer) {
-	//	rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	msg.Answer = append(msg.Answer, rrsig)
-	//}
-
-	//for t, rrset := range GroupRecordsByType(msg.Ns) {
-	//	if t == dns.TypeNS {
-	//		// We don't sign NS records in the authority section.
-	//		continue
-	//	}
-	//	rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	msg.Ns = append(msg.Ns, rrsig)
-	//}
-
 	return msg, nil
 }
 
