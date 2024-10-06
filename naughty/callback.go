@@ -16,6 +16,5 @@ func NewStandardCallbacks(signer Signer) *Callbacks {
 		DelegatedSingers: func() []*dns.DS { return signer.DelegatedSingers() },
 		Sign:             func(m *dns.Msg) (*dns.Msg, error) { return signer.Sign(m) },
 		DenyExistence:    DefaultDenyExistenceNSEC,
-		//DenyExistence: DefaultDenyExistenceNSEC3,
 	}
 }
