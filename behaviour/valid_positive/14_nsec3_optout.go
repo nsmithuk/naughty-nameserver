@@ -29,7 +29,7 @@ func (r *OptoutDSNsec3RecordDeligation) Setup(ns *naughty.Nameserver) []*naughty
 		// After setting the onward NS record, we remove `test.` from the store.
 		// This results in the NSEC3 records being generated such that the record does not exist.
 		// The `a.` and `b.` records result in a setup where-by `test.` is *covered* by the NSEC3
-		// records. But the opt-out flag is not set, thus it should be seen as bogus.
+		// records. We then set the opt-out flag, thus the end result should be Insecure (but valid).
 
 		store := maps.Clone(z.Records)
 
@@ -76,7 +76,7 @@ func (r *OptoutDSNsec3RecordDeligation) Setup(ns *naughty.Nameserver) []*naughty
 	}
 	zone.AddRecord(a)
 
-	naughty.Info(fmt.Sprintf(logging.LogFmtInvalid, nameserver.Header().Name))
+	naughty.Info(fmt.Sprintf(logging.LogFmtValid, nameserver.Header().Name))
 
 	//---
 
