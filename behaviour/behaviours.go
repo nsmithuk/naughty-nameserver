@@ -22,8 +22,9 @@ func GeBehaviours() []naughty.BehaviourFactory {
 		//new(invalid_positive.InvalidKeyFlag),
 		//new(invalid_positive.DsKeyMissmatch),
 		//new(invalid_positive.RRSetDoesNotMatchRRSig),
-		new(invalid_positive.InceptionInFuture),
-		new(invalid_positive.ExpirationInPast),
+		//new(invalid_positive.InceptionInFuture),
+		//new(invalid_positive.ExpirationInPast),
+		new(invalid_positive.MissingRRSig),
 
 		//new(valid_negative.SingleNXDomainNsecResponse),
 		//new(valid_negative.DoubleNXDomainNsecResponse),
