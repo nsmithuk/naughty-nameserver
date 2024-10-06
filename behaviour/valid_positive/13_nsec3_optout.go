@@ -9,7 +9,7 @@ import (
 	"net"
 )
 
-// VP 14
+// VP 13
 
 // Warning: This test requires a zone hosted elsewhere, to delegate to, for it to make sense.
 // It's setup to work with either naughty.qazz.uk or naughty-nameserver.com only.
