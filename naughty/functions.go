@@ -3,7 +3,6 @@ package naughty
 import (
 	"github.com/miekg/dns"
 	"iter"
-	"strings"
 )
 
 func IterateDownDomainHierarchy(domain string) iter.Seq[string] {
@@ -26,7 +25,7 @@ func IterateDownDomainHierarchy(domain string) iter.Seq[string] {
 }
 
 func fqdn(name string) string {
-	return dns.Fqdn(strings.ToLower(name))
+	return dns.CanonicalName(name)
 }
 
 // WildcardName replaces the first label with *
