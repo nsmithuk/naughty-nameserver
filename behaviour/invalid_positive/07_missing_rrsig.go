@@ -48,7 +48,7 @@ func (r *MissingRRSig) Setup(ns *naughty.Nameserver) []*naughty.Zone {
 	}
 	zone.AddRecord(cname)
 
-	naughty.Info(fmt.Sprintf(logging.LogFmtValid, cname.Header().Name))
+	naughty.Info(fmt.Sprintf(logging.LogFmtInvalid, cname.Header().Name))
 
 	return []*naughty.Zone{zone}
 }

@@ -1,7 +1,7 @@
 package behaviour
 
 import (
-	"github.com/nsmithuk/naughty-nameserver/behaviour/invalid_positive"
+	"github.com/nsmithuk/naughty-nameserver/behaviour/valid_negative"
 	"github.com/nsmithuk/naughty-nameserver/naughty"
 )
 
@@ -24,11 +24,19 @@ func GeBehaviours() []naughty.BehaviourFactory {
 		//new(invalid_positive.RRSetDoesNotMatchRRSig),
 		//new(invalid_positive.InceptionInFuture),
 		//new(invalid_positive.ExpirationInPast),
-		new(invalid_positive.MissingRRSig),
+		//new(invalid_positive.MissingRRSig),
 
+		// Valid Negative
 		//new(valid_negative.SingleNXDomainNsecResponse),
 		//new(valid_negative.DoubleNXDomainNsecResponse),
-		//new(valid_negative.NODataNsecResponse),
+		new(valid_negative.NODataNsecResponse),
+		new(valid_negative.SingleNXDomainNsec3Response),
+		new(valid_negative.DoubleCeAndNcnThenWcNXDomainNsec3Response),
+		new(valid_negative.DoubleCeThenNcnAndWcNXDomainNsec3Response),
+		//new(valid_negative.DoubleCeAndWcThenNcnNXDomainNsec3Response),
+		new(valid_negative.TripleNXDomainNsec3Response),
+		new(valid_negative.NODataNsec3Response),
+
 		//new(invalid_negative.InvalidDSNsecRecordDeligation),
 		//new(invalid_negative.InvalidDSNsec3RecordDeligation),
 		//new(invalid_negative.NoOptoutDSNsec3RecordDeligation),

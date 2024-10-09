@@ -38,7 +38,7 @@ func (r *RRSetDoesNotMatchRRSig) Setup(ns *naughty.Nameserver) []*naughty.Zone {
 		return msg, err
 	}
 
-	naughty.Info(fmt.Sprintf(logging.LogFmtValid, a.Header().Name))
+	naughty.Info(fmt.Sprintf(logging.LogFmtInvalid, a.Header().Name))
 
 	return []*naughty.Zone{zone}
 }
