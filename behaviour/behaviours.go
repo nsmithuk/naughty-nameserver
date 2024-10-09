@@ -1,7 +1,7 @@
 package behaviour
 
 import (
-	"github.com/nsmithuk/naughty-nameserver/behaviour/valid_negative"
+	"github.com/nsmithuk/naughty-nameserver/behaviour/invalid_negative"
 	"github.com/nsmithuk/naughty-nameserver/naughty"
 )
 
@@ -29,16 +29,19 @@ func GeBehaviours() []naughty.BehaviourFactory {
 		// Valid Negative
 		//new(valid_negative.SingleNXDomainNsecResponse),
 		//new(valid_negative.DoubleNXDomainNsecResponse),
-		new(valid_negative.NODataNsecResponse),
-		new(valid_negative.SingleNXDomainNsec3Response),
-		new(valid_negative.DoubleCeAndNcnThenWcNXDomainNsec3Response),
-		new(valid_negative.DoubleCeThenNcnAndWcNXDomainNsec3Response),
+		//new(valid_negative.NODataNsecResponse),
+		//new(valid_negative.SingleNXDomainNsec3Response),
+		//new(valid_negative.DoubleCeAndNcnThenWcNXDomainNsec3Response),
+		//new(valid_negative.DoubleCeThenNcnAndWcNXDomainNsec3Response),
 		//new(valid_negative.DoubleCeAndWcThenNcnNXDomainNsec3Response),
-		new(valid_negative.TripleNXDomainNsec3Response),
-		new(valid_negative.NODataNsec3Response),
+		//new(valid_negative.TripleNXDomainNsec3Response),
+		//new(valid_negative.NODataNsec3Response),
 
+		// Invalid Negative
 		//new(invalid_negative.InvalidDSNsecRecordDeligation),
 		//new(invalid_negative.InvalidDSNsec3RecordDeligation),
 		//new(invalid_negative.NoOptoutDSNsec3RecordDeligation),
+		new(invalid_negative.InvalidNsec3Hash),
+		new(invalid_negative.InvalidNsec3Flag),
 	}
 }

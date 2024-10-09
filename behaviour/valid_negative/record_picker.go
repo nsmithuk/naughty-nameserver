@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+/*
+Helper functions to generate record sets for testing valid denial of existence proofs.
+
+The hash values of NSEC3 records will change depending on the Base (Zone) Name that's set.
+So to allow that to be dynamic, we need to find suitable records on Setup().
+*/
+
 func hash(name string) string {
 	return strings.ToLower(dns.HashName(name, dns.SHA1, naughty.Nsec3Iterations, naughty.Nsec3Salt))
 }
