@@ -14,15 +14,17 @@ type Zone struct {
 	NS  []GluedNS
 	SOA *dns.SOA
 
-	Records map[RecordKey]RecordSet
-}
+	//records map[RRSetKey]RecordSet
 
-type RecordKey struct {
-	Name string
-	typ  uint16
+	// a map of name, then type
+	Records RecordStore
 }
 
 type RecordSet []dns.RR
+
+type RecordStore map[string]map[uint16]RecordSet
+
+type SynthesisedResults map[string]string
 
 //---
 
@@ -37,7 +39,13 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 		Name:      name,
 		NS:        make([]GluedNS, len(nameservers)),
 		Callbacks: callbacks,
-		Records:   make(map[RecordKey]RecordSet),
+		//records: records{
+		//	collection:      make([]*record, 0),
+		//	nsec3Salt:       "baff1edd",
+		//	nsec3Iterations: 2,
+		//	origin:          name,
+		//},
+		Records: make(RecordStore),
 
 		SOA: &dns.SOA{
 			Hdr:     NewHeader(name, dns.TypeSOA),
@@ -53,18 +61,24 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 
 	//---
 
+	zone.AddRecord(zone.SOA)
+
 	// Add the zone's own nameservers
 	for i, ns := range nameservers {
+		// The name servers are ns*.<base zone>. We only add glue records for <base zone>, down to the root.
+		if dns.IsSubDomain(zone.Name, ns.NS.Header().Name) {
+			zone.AddRecord(ns.A)
+			zone.AddRecord(ns.NS)
+		}
+
 		// Re-write the header to match the zone name
 		ns.NS = dns.Copy(ns.NS).(*dns.NS)
 		ns.NS.Header().Name = name
 		zone.NS[i] = ns
-
-		// Add the glue records
-		zone.AddRecord(ns.A)
+		zone.AddRecord(ns.NS)
 	}
 
-	// Add the Keys
+	// Add the DNSKEYs.
 	for _, dnskey := range callbacks.Keys() {
 		zone.AddRecord(dnskey)
 	}
@@ -74,15 +88,40 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 	return zone
 }
 
-func (z *Zone) AddRecord(r dns.RR) {
-	k := RecordKey{r.Header().Name, r.Header().Rrtype}
+func (z *Zone) nsRecordsMatchZone(rrset []dns.RR) bool {
+	for _, ns := range z.NS {
+		for _, rr := range rrset {
+			if rrns, ok := rr.(*dns.NS); ok && strings.EqualFold(ns.NS.Ns, rrns.Ns) {
+				return true
+			}
+		}
+	}
+	return false
+}
 
-	if _, ok := z.Records[k]; !ok {
-		z.Records[k] = make(RecordSet, 0)
+func (z *Zone) GetRecords(rrname string, rrtype uint16) []dns.RR {
+	rrset, _ := z.Records[rrname][rrtype]
+	return rrset
+}
+
+func (z *Zone) GetTypesAndRecords(rrname string) map[uint16]RecordSet {
+	rrset, _ := z.Records[rrname]
+	return rrset
+}
+
+func (z *Zone) AddRecord(r dns.RR) {
+	qname := fqdn(r.Header().Name)
+	qtype := r.Header().Rrtype
+
+	if _, ok := z.Records[qname]; !ok {
+		z.Records[qname] = make(map[uint16]RecordSet)
+	}
+	if _, ok := z.Records[qname][qtype]; !ok {
+		z.Records[qname][qtype] = make(RecordSet, 0, 1)
 	}
 
-	z.Records[k] = append(z.Records[k], r)
-	z.Records[k] = dns.Dedup(z.Records[k], nil)
+	z.Records[qname][qtype] = append(z.Records[qname][qtype], r)
+	z.Records[qname][qtype] = dns.Dedup(z.Records[qname][qtype], nil)
 }
 
 func (z *Zone) AddRecords(r []dns.RR) {
@@ -101,87 +140,184 @@ func (z *Zone) DelegateTo(child *Zone) {
 	}
 }
 
-func (z *Zone) Query(qmsg *dns.Msg) (*dns.Msg, error) {
-	// We lower-case the name here to work with DNS 0x20 encoding.
-	q := RecordKey{strings.ToLower(qmsg.Question[0].Name), qmsg.Question[0].Qtype}
+func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, wildcardsUsed SynthesisedResults) {
+	// Assume DS for qname has already been checked.
+
+	// Do we have any records in the zone that exactly matches the QName and QType?
+	if rrset := z.GetRecords(qname, qtype); rrset != nil {
+		rmsg.Authoritative = true
+		rmsg.Answer = append(rmsg.Answer, rrset...)
+		return
+	}
+
+	// Do we have any wildcards that match the QName and QType?
+	// We can only have a wildcard if there are more labels in the question than zone name (* cannot catch the apex).
+	if dns.CountLabel(qname) > dns.CountLabel(z.Name) {
+
+		// Replaces the first label with *
+		wildcardQname := WildcardName(qname)
+
+		if rrset := z.GetRecords(wildcardQname, qtype); rrset != nil {
+			result := make([]dns.RR, len(rrset))
+			for i, rr := range rrset {
+				// We take a copy as we'll be amending the header later to match teh question.
+				result[i] = dns.Copy(rr)
+			}
+			rmsg.Authoritative = true
+			rmsg.Answer = append(rmsg.Answer, result...)
+
+			// Record wildcard
+			wildcardsUsed[wildcardQname] = qname
+
+			return
+		}
+		if rrset := z.GetRecords(wildcardQname, dns.TypeCNAME); rrset != nil {
+			target := rrset[0].(*dns.CNAME).Target
+			if !strings.HasSuffix(target, ".") {
+				target += "." + z.Name
+			}
+
+			rmsg.Authoritative = true
+			for _, cname := range rrset {
+				// We need to ensure the target is a fqdn, and the header later.
+				cn := dns.Copy(cname)
+				cn.(*dns.CNAME).Target = target
+				rmsg.Answer = append(rmsg.Answer, cn)
+			}
+
+			// Record wildcard
+			wildcardsUsed[wildcardQname] = qname
+
+			z.populateResponse(target, qtype, rmsg, wildcardsUsed)
+			return
+		}
+	}
+
+	// Do we have any records that match just the QName?
+	if types := z.GetTypesAndRecords(qname); types != nil {
+		// Is one of the types a CNAME?
+		if rrset, _ := types[dns.TypeCNAME]; rrset != nil {
+
+			target := rrset[0].(*dns.CNAME).Target
+			if !strings.HasSuffix(target, ".") {
+				target += "." + z.Name
+			}
+
+			rmsg.Authoritative = true
+			for _, cname := range rrset {
+				// We need to ensure the target is a fqdn
+				cn := dns.Copy(cname)
+				cn.(*dns.CNAME).Target = target
+				rmsg.Answer = append(rmsg.Answer, cn)
+			}
+
+			z.populateResponse(target, qtype, rmsg, wildcardsUsed)
+			return
+		} else if rrset, _ := types[dns.TypeNS]; rrset != nil && !z.nsRecordsMatchZone(rrset) {
+			// Then we have an exact match on a delegation
+			// If the NS the same for this zone?
+			rmsg.Ns = append(rmsg.Ns, rrset...)
+			// And do we have DS records?
+			if rrset := z.GetRecords(qname, dns.TypeDS); rrset != nil {
+				rmsg.Ns = append(rmsg.Ns, rrset...)
+			}
+			return
+		} else {
+			// NODATA
+			rmsg.Authoritative = true
+			rmsg.Ns = append(rmsg.Ns, z.SOA)
+			return
+		}
+	}
+
+	// Do we have any NS records that match a suffix of the QName?
+	for name := range IterateDownDomainHierarchy(qname) {
+		if name == z.Name || !dns.IsSubDomain(z.Name, name) {
+			// Break if we're now looking at this zone, or a parent of this zone.
+			break
+		}
+		if rrset := z.GetRecords(name, dns.TypeNS); rrset != nil {
+			// We're delegating...
+			rmsg.Ns = append(rmsg.Ns, rrset...)
+			// And do we have DS records?
+			if rrset := z.GetRecords(name, dns.TypeDS); rrset != nil {
+				rmsg.Ns = append(rmsg.Ns, rrset...)
+			}
+			return
+		}
+	}
+
+	// NXDOMAIN
+	rmsg.Authoritative = true
+	rmsg.Rcode = dns.RcodeNameError
+	rmsg.Ns = append(rmsg.Ns, z.SOA)
+
+	return
+}
+
+func (z *Zone) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
+	qname := fqdn(qmsg.Question[0].Name)
+	qtype := qmsg.Question[0].Qtype
+
+	if qtype == dns.TypeDS && qname == z.Name {
+		// We should not be returning a DS record for ourselves.
+		// Returning nil, nil will pass the request up to the parent zone.
+		return nil, nil
+	}
 
 	rmsg := new(dns.Msg)
 	rmsg.SetReply(qmsg)
-	rmsg.Authoritative = true // TODO: Not always the case.
-	rmsg.RecursionAvailable = false
 
-	if q.typ == dns.TypeNS && q.Name == z.Name {
+	wildcardsUsed := make(SynthesisedResults)
 
-		// "My" NS is special...
-		for _, ns := range z.NS {
-			rmsg.Answer = append(rmsg.Answer, ns.NS)
-		}
-
-	} else if q.typ == dns.TypeSOA && q.Name == z.Name {
-
-		// If SOA, special...
-		rmsg.Answer = append(rmsg.Answer, z.SOA)
-
-	} else if q.typ == dns.TypeDS && q.Name == z.Name && q.Name != "." {
-
-		// We should not be returning a DS record for ourselves.
-		// If we're at the root, we leave it so the SOA is returned.
-
-		// Returning nil, nil will pass the request up to the parent zone.
-		return nil, nil
-
-	} else if records, ok := z.Records[q]; ok {
-		// General case
-
-		if q.typ == dns.TypeNS {
-			rmsg.Ns = append(rmsg.Ns, records...)
-			rmsg.Authoritative = false
-		} else {
-			rmsg.Answer = append(rmsg.Answer, records...)
-		}
-
-	} else if records, ok := z.Records[RecordKey{q.Name, dns.TypeNS}]; ok {
-		// Checks if we have an NS records, even though they were requesting a different type.
-		rmsg.Ns = append(rmsg.Ns, records...)
-		rmsg.Authoritative = false
-	} else {
-
-		// When not found...
-		rmsg.Ns = append(rmsg.Ns, z.SOA)
-	}
+	z.populateResponse(qname, qtype, rmsg, wildcardsUsed)
 
 	//---
 
-	// If we have NS records set anywhere, add some glue if we can.
-	glue := make([]dns.RR, 0)
-	for _, rr := range append(rmsg.Answer, rmsg.Ns...) {
-		if ns, ok := rr.(*dns.NS); ok {
-			if records, ok := z.Records[RecordKey{ns.Ns, dns.TypeA}]; ok {
-				glue = append(glue, records...)
-			} else if records, ok := z.Records[RecordKey{ns.Ns, dns.TypeAAAA}]; ok {
-				glue = append(glue, records...)
+	// See if we can help out with any glue.
+	if len(rmsg.Ns) > 0 {
+		glue := make([]dns.RR, 0)
+		for _, rr := range append(rmsg.Answer, rmsg.Ns...) {
+			if ns, ok := rr.(*dns.NS); ok {
+				if rrset := z.GetRecords(ns.Ns, dns.TypeA); rrset != nil {
+					glue = append(glue, rrset...)
+				} else if rrset := z.GetRecords(ns.Ns, dns.TypeAAAA); rrset != nil {
+					glue = append(glue, rrset...)
+				}
 			}
 		}
-	}
-	glue = dns.Dedup(glue, nil)
-	if len(glue) > 0 {
-		rmsg.Extra = append(rmsg.Extra, glue...)
+		glue = dns.Dedup(glue, nil)
+		if len(glue) > 0 {
+			rmsg.Extra = append(rmsg.Extra, glue...)
+		}
 	}
 
 	//---
 
-	rmsg = z.Callbacks.PreSigning(rmsg)
-
+	//if rmsg.Authoritative && Do(qmsg) {
 	if Do(qmsg) {
 		var err error
+		rmsg, err = z.Callbacks.DenyExistence(rmsg, z, wildcardsUsed)
+		if err != nil {
+			return nil, err
+		}
+
 		rmsg, err = z.Callbacks.Sign(rmsg)
 		if err != nil {
 			return nil, err
 		}
+
 		rmsg.AuthenticatedData = true
 	}
 
-	rmsg = z.Callbacks.PostSigning(rmsg)
+	// If there were any wildcards used, we need to set the correct headers. Only in Answer section.
+	for wildcard, qname := range wildcardsUsed {
+		for _, rr := range rmsg.Answer {
+			if rr.Header().Name == wildcard {
+				rr.Header().Name = qname
+			}
+		}
+	}
 
 	//---
 

@@ -1,33 +1,33 @@
-package behaviour
+package invalid_positive
 
 import (
 	"fmt"
 	"github.com/miekg/dns"
+	"github.com/nsmithuk/naughty-nameserver/behaviour/logging"
 	"github.com/nsmithuk/naughty-nameserver/naughty"
 	"net"
 )
 
-type ZskDS struct{}
+// IP 3
 
-func (t *ZskDS) Setup(ns *naughty.Nameserver) error {
+type DsKeyMissmatch struct{}
 
-	name := dns.Fqdn(fmt.Sprintf("zsk-ds.%s", ns.BaseZoneName))
+func (r *DsKeyMissmatch) Setup(ns *naughty.Nameserver) []*naughty.Zone {
+	name := dns.Fqdn(fmt.Sprintf("ds-key-missmatch.%s", ns.BaseZoneName))
 
 	signer, err := naughty.NewSignerAutogenPair(name, dns.ECDSAP256SHA256, 256, dns.ECDSAP256SHA256, 256)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	callbacks := naughty.NewStandardCallbacks(signer)
 
 	callbacks.DelegatedSingers = func() []*dns.DS {
-		// We return the ZSK (wrong) DS.
+		// We only return the DS records for the ZSK.
 		return signer.Zsk.DelegatedSingers()
 	}
 
 	zone := naughty.NewZone(name, ns.NSRecords, callbacks)
-	ns.BaseZone.DelegateTo(zone)
-	ns.Zones[name] = zone
 
 	a := &dns.A{
 		Hdr: naughty.NewHeader(fmt.Sprintf("test.%s", name), dns.TypeA),
@@ -35,8 +35,7 @@ func (t *ZskDS) Setup(ns *naughty.Nameserver) error {
 	}
 	zone.AddRecord(a)
 
-	naughty.Log.Infof(logFmtInvalid, a.Header().Name)
+	naughty.Info(fmt.Sprintf(logging.LogFmtInvalid, a.Header().Name))
 
-	return nil
-
+	return []*naughty.Zone{zone}
 }

@@ -6,41 +6,51 @@ import (
 	"time"
 )
 
+/*
+   The NS RRset that appears at the zone apex name MUST be signed, but
+   the NS RRsets that appear at delegation points (that is, the NS
+   RRsets in the parent zone that delegate the name to the child zone's
+   name servers) MUST NOT be signed.  Glue address RRsets associated
+   with delegations MUST NOT be signed.
+*/
+
 type Signer interface {
 	Keys() []*dns.DNSKEY
 	Sign(*dns.Msg) (*dns.Msg, error)
 	DelegatedSingers() []*dns.DS
 }
 
-// type SignMsgSigner func(*dns.DNSKEY, crypto.Signer, *dns.Msg, SignRRSetSigner) (*dns.Msg, error)
 type SignRRSetSigner func(*dns.DNSKEY, crypto.Signer, []dns.RR, int64, int64) (*dns.RRSIG, error)
 
 func SignMsg(key *dns.DNSKEY, signer crypto.Signer, msg *dns.Msg, rrsetSigner SignRRSetSigner) (*dns.Msg, error) {
 	inception := time.Now().Add(time.Hour * -24).Unix()
 	expiration := time.Now().Add(time.Hour * 24).Unix()
 
-	for _, rrset := range GroupRecordsByType(msg.Answer) {
-		rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
-		if err != nil {
-			return nil, err
+	// Outer-loop covers names.
+	// Inner loop covers types.
+
+	for _, name := range GroupRecordsByNameAndType(msg.Answer) {
+		for _, rrset := range name {
+			rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
+			if err != nil {
+				return nil, err
+			}
+			msg.Answer = append(msg.Answer, rrsig)
 		}
-		msg.Answer = append(msg.Answer, rrsig)
 	}
 
-	for _, rrset := range GroupRecordsByType(msg.Ns) {
-		rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
-		if err != nil {
-			return nil, err
+	for _, name := range GroupRecordsByNameAndType(msg.Ns) {
+		for t, rrset := range name {
+			if t == dns.TypeNS {
+				// We don't sign NS records in the authority section.
+				continue
+			}
+			rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
+			if err != nil {
+				return nil, err
+			}
+			msg.Ns = append(msg.Ns, rrsig)
 		}
-		msg.Ns = append(msg.Ns, rrsig)
-	}
-
-	for _, rrset := range GroupRecordsByType(msg.Extra) {
-		rrsig, err := rrsetSigner(key, signer, rrset, inception, expiration)
-		if err != nil {
-			return nil, err
-		}
-		msg.Extra = append(msg.Extra, rrsig)
 	}
 
 	return msg, nil

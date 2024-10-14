@@ -1,17 +1,18 @@
-package behaviour
+package valid_positive
 
 import (
 	"fmt"
 	"github.com/miekg/dns"
+	"github.com/nsmithuk/naughty-nameserver/behaviour/logging"
 	"github.com/nsmithuk/naughty-nameserver/naughty"
 	"net"
 )
 
-// AllValidAlgorithms covers 6 valid/working use cases, each signed with a CSK.
-type AllValidAlgorithms struct {
-}
+// VP 1 to 6
 
-func (t *AllValidAlgorithms) Setup(ns *naughty.Nameserver) error {
+type AlgorithmCombinations struct{}
+
+func (r *AlgorithmCombinations) Setup(ns *naughty.Nameserver) []*naughty.Zone {
 
 	type combination struct {
 		name      string
@@ -28,26 +29,24 @@ func (t *AllValidAlgorithms) Setup(ns *naughty.Nameserver) error {
 		{"ed25519", dns.ED25519, 256},
 	}
 
-	for _, c := range combinations {
+	zones := make([]*naughty.Zone, len(combinations))
+	for i, c := range combinations {
 		name := fmt.Sprintf("%s.%s", c.name, ns.BaseZoneName)
 
 		signer, err := naughty.NewSignerAutogenSingle(name, c.algorithm, c.bits)
 		if err != nil {
-			return err
+			panic(err)
 		}
 
-		zone := naughty.NewZone(name, ns.NSRecords, naughty.NewStandardCallbacks(signer))
-		ns.BaseZone.DelegateTo(zone)
-		ns.Zones[name] = zone
-
+		zones[i] = naughty.NewZone(name, ns.NSRecords, naughty.NewStandardCallbacks(signer))
 		a := &dns.A{
 			Hdr: naughty.NewHeader(fmt.Sprintf("test.%s", name), dns.TypeA),
 			A:   net.ParseIP("192.0.2.53").To4(),
 		}
-		zone.AddRecord(a)
+		zones[i].AddRecord(a)
 
-		naughty.Log.Infof(logFmtValid, a.Header().Name)
+		naughty.Info(fmt.Sprintf(logging.LogFmtValid, a.Header().Name))
 	}
 
-	return nil
+	return zones
 }

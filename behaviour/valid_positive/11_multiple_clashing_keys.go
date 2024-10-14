@@ -1,12 +1,15 @@
-package behaviour
+package valid_positive
 
 import (
 	"fmt"
 	"github.com/miekg/dns"
+	"github.com/nsmithuk/naughty-nameserver/behaviour/logging"
 	"github.com/nsmithuk/naughty-nameserver/naughty"
 	"net"
 	"strings"
 )
+
+// VP 11
 
 /*
 These keys are deliberately committed for testing purposes.
@@ -14,7 +17,7 @@ These keys are deliberately committed for testing purposes.
 To understand how they were generated, see:
 https://gist.github.com/nsmithuk/aecbffeb3dbbd20279181d3b57ba9de9.
 
-These keys are pre-generated because finding matching keys is a non-deterministic task, and we cannot
+These keys are pre-generated because finding matching keys is a non-deterministic task so we cannot
 reliably assume we'll always be able to generate them in a timely manner during Setup().
 */
 
@@ -49,11 +52,11 @@ Algorithm: 15 (ED25519)
 PrivateKey: ho9mEVla4jjpbC5DoebVqsmvqWtFc074kENkCW86gPg=`,
 }
 
-type ClashingKeys struct{}
+type MultipleClashingKeys struct{}
 
-func (t *ClashingKeys) Setup(ns *naughty.Nameserver) error {
+func (r *MultipleClashingKeys) Setup(ns *naughty.Nameserver) []*naughty.Zone {
 	if len(clashingKeys) != 7 {
-		return fmt.Errorf("expected 7 clashing keys, got %d", len(clashingKeys))
+		panic(fmt.Errorf("expected 7 clashing keys, got %d", len(clashingKeys)))
 	}
 
 	name := dns.Fqdn(fmt.Sprintf("clashing-keys.%s", ns.BaseZoneName))
@@ -64,7 +67,7 @@ func (t *ClashingKeys) Setup(ns *naughty.Nameserver) error {
 		var err error
 		signers[i], err = naughty.NewSignerReaderSingle(name, strings.NewReader(public), strings.NewReader(secret))
 		if err != nil {
-			return err
+			panic(err)
 		}
 		i++
 	}
@@ -73,11 +76,9 @@ func (t *ClashingKeys) Setup(ns *naughty.Nameserver) error {
 	tag := signers[0].Key().KeyTag()
 	for _, signer := range signers {
 		if signer.Key().KeyTag() != tag {
-			return fmt.Errorf("expected key tag %d, got %d", tag, signer.Key().KeyTag())
+			panic(fmt.Errorf("expected key tag %d, got %d", tag, signer.Key().KeyTag()))
 		}
 	}
-
-	//---
 
 	// We use the "middle" key for actually signing.
 	callbacks := naughty.NewStandardCallbacks(signers[3])
@@ -92,8 +93,6 @@ func (t *ClashingKeys) Setup(ns *naughty.Nameserver) error {
 	}
 
 	zone := naughty.NewZone(name, ns.NSRecords, callbacks)
-	ns.BaseZone.DelegateTo(zone)
-	ns.Zones[name] = zone
 
 	a := &dns.A{
 		Hdr: naughty.NewHeader(fmt.Sprintf("test.%s", name), dns.TypeA),
@@ -101,7 +100,7 @@ func (t *ClashingKeys) Setup(ns *naughty.Nameserver) error {
 	}
 	zone.AddRecord(a)
 
-	naughty.Log.Infof(logFmtValid, a.Header().Name)
+	naughty.Info(fmt.Sprintf(logging.LogFmtValid, a.Header().Name))
 
-	return nil
+	return []*naughty.Zone{zone}
 }

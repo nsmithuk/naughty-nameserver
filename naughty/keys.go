@@ -6,7 +6,7 @@ Both keys are deliberately committed for testing purposes:
 1. One key is for the root (.) zone.
 2. The other key is for the server's base domain name (e.g., naughty-nameserver.com).
 
-These keys are intended to be static, as the DS records need to remain consistent.
+These keys are intended to be static, so that DS records remain known.
 The primary goal of this code is not to create a "secure" server, but rather to serve
 as a useful tool for testing scenarios.
 */

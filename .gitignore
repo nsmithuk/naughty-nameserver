@@ -1,3 +1,6 @@
 /.idea
 /dns
 /test-cases.txt
+/push.sh
+.DS_Store
+/behaviour/old/

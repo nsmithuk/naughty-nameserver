@@ -1,24 +1,26 @@
-package behaviour
+package valid_positive
 
 import (
 	"fmt"
 	"github.com/miekg/dns"
+	"github.com/nsmithuk/naughty-nameserver/behaviour/logging"
 	"github.com/nsmithuk/naughty-nameserver/naughty"
 	"net"
 	"slices"
 )
 
-type MultipleDS struct{}
+// VP 12
 
-func (t *MultipleDS) Setup(ns *naughty.Nameserver) error {
+type MultipleDsRecords struct{}
 
+func (r *MultipleDsRecords) Setup(ns *naughty.Nameserver) []*naughty.Zone {
 	name := dns.Fqdn(fmt.Sprintf("multiple-ds.%s", ns.BaseZoneName))
 
 	signer := naughty.NewSignerAutogenSingleDefault(name)
 	callbacks := naughty.NewStandardCallbacks(signer)
 
 	callbacks.DelegatedSingers = func() []*dns.DS {
-		// Means no DS record will be set
+		// We return the real records, but a couple of other random ones.
 		return slices.Concat(
 			naughty.NewSignerAutogenSingleDefault(name).DelegatedSingers(),
 			signer.DelegatedSingers(),
@@ -27,8 +29,6 @@ func (t *MultipleDS) Setup(ns *naughty.Nameserver) error {
 	}
 
 	zone := naughty.NewZone(name, ns.NSRecords, callbacks)
-	ns.BaseZone.DelegateTo(zone)
-	ns.Zones[name] = zone
 
 	a := &dns.A{
 		Hdr: naughty.NewHeader(fmt.Sprintf("test.%s", name), dns.TypeA),
@@ -36,8 +36,7 @@ func (t *MultipleDS) Setup(ns *naughty.Nameserver) error {
 	}
 	zone.AddRecord(a)
 
-	naughty.Log.Infof(logFmtValid, a.Header().Name)
+	naughty.Info(fmt.Sprintf(logging.LogFmtValid, a.Header().Name))
 
-	return nil
-
+	return []*naughty.Zone{zone}
 }
