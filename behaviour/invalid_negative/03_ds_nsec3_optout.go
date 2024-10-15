@@ -35,7 +35,7 @@ func (r *NoOptoutDSNsec3RecordDeligation) Setup(ns *naughty.Nameserver) []*naugh
 
 		delete(store, fmt.Sprintf("test.%s", name))
 
-		qname := dns.Fqdn(msg.Question[0].Name)
+		qname := dns.CanonicalName(msg.Question[0].Name)
 
 		records := make([]dns.RR, 0, 3)
 		records = append(records, store.GetNSEC3ClosestEncloserRecord(qname, z.Name))

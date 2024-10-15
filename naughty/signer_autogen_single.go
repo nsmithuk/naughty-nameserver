@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"fmt"
+	csign "github.com/cloudflare/circl/sign"
 	"github.com/miekg/dns"
 )
 
@@ -47,6 +48,34 @@ func NewSignerAutogenSingle(zone string, algorithm uint8, bits int) (*SignerAuto
 	case *rsa.PrivateKey:
 		signer = s
 	case ed25519.PrivateKey:
+		signer = s
+	default:
+		return nil, fmt.Errorf("unknown secret type: %T", secret)
+	}
+
+	return &SignerAutogenSingle{
+		hash:   dns.SHA256,
+		signer: signer,
+		key:    dnskey,
+	}, nil
+}
+
+func NewSignerAutogenSingleMLDSA(zone string, algorithm uint8) (*SignerAutogenSingle, error) {
+	dnskey := &dns.DNSKEY{
+		Hdr:       NewHeader(zone, dns.TypeDNSKEY),
+		Flags:     DnskeyFlagCsk,
+		Protocol:  3,
+		Algorithm: algorithm,
+	}
+
+	secret, err := dnskey.GenerateMLDSA()
+	if err != nil {
+		panic(err)
+	}
+
+	var signer crypto.Signer
+	switch s := secret.(type) {
+	case csign.PrivateKey:
 		signer = s
 	default:
 		return nil, fmt.Errorf("unknown secret type: %T", secret)

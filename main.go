@@ -36,6 +36,7 @@ func init() {
 
 func main() {
 	domain := dns.Fqdn("naughty.qazz.uk.")
+	//domain = dns.Fqdn("naughty-nameserver.com.")
 	ns1 := "13.40.162.160"
 	ns2 := "13.40.162.160"
 

@@ -13,7 +13,7 @@ import (
 type KeyFlag257 struct{}
 
 func (r *KeyFlag257) Setup(ns *naughty.Nameserver) []*naughty.Zone {
-	name := dns.Fqdn(fmt.Sprintf("key-flag-256.%s", ns.BaseZoneName))
+	name := dns.Fqdn(fmt.Sprintf("key-flag-257.%s", ns.BaseZoneName))
 
 	signer := naughty.NewSignerAutogenSingleDefault(name)
 

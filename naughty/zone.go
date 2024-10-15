@@ -39,13 +39,7 @@ func NewZone(name string, nameservers []GluedNS, callbacks *Callbacks) *Zone {
 		Name:      name,
 		NS:        make([]GluedNS, len(nameservers)),
 		Callbacks: callbacks,
-		//records: records{
-		//	collection:      make([]*record, 0),
-		//	nsec3Salt:       "baff1edd",
-		//	nsec3Iterations: 2,
-		//	origin:          name,
-		//},
-		Records: make(RecordStore),
+		Records:   make(RecordStore),
 
 		SOA: &dns.SOA{
 			Hdr:     NewHeader(name, dns.TypeSOA),
@@ -152,6 +146,7 @@ func (z *Zone) populateResponse(qname string, qtype uint16, rmsg *dns.Msg, wildc
 
 	// Do we have any wildcards that match the QName and QType?
 	// We can only have a wildcard if there are more labels in the question than zone name (* cannot catch the apex).
+	// TODO: Wildcard check should not be first.
 	if dns.CountLabel(qname) > dns.CountLabel(z.Name) {
 
 		// Replaces the first label with *
