@@ -257,7 +257,7 @@ Given these sizes, it's clear that some DNS messages may no longer be suitable f
 
 As a result, to accommodate the increased size of PQC-signed keysets, we may need to rely more heavily on **TCP** for DNS transactions. While this shift could have performance implications, especially in terms of latency and connection overhead, it is a necessary adaptation to ensure DNSSEC remains secure against future quantum attacks. Thus, the integration of PQC may herald a new era where the DNS ecosystem evolves to prioritize reliability and security over speed, marking a notable shift in its design philosophy.
 
-#### See the example from above
+#### Examples referenced above
 ```shell
 dig @ns1.naughty-nameserver.com ecdsa-p256-sha256.naughty-nameserver.com. DNSKEY +dnssec
 ```
