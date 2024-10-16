@@ -4,19 +4,14 @@ Naughty Nameserver is a tool designed to facilitate the testing of DNSSEC (Domai
 by providing a simple method for generating DNS responses with deterministic outcomes. It serves multiple DNS 
 zones, each configured to return either valid or invalid responses, depending on the testing scenario.
 
-Originally intended as a mock for unit testing Go-based DNSSEC validators, Naughty Nameserver has since become 
-widely used as a server that responds to actual DNS lookups. This makes it a versatile tool for developers and 
-testers working with DNSSEC.
+Originally intended as a mock for unit testing Go-based DNSSEC validators, Naughty Nameserver morphed into a server that responds to actual DNS lookups.
+This makes it a versatile tool for developers and testers working with DNSSEC.
 
-### Real-Time DNS Queries
-Naughty Nameserver can be used as a live DNS server, responding to actual DNS queries. This makes it a 
-powerful tool for developers and network administrators needing a reliable resource for DNSSEC validation testing.
-A hosted version of this is running on the domain `naughty-nameserver.com`.
+## Features
 
-### Unit Testing in Go
-Naughty Nameserver can be integrated into Go-based DNSSEC validator unit tests, 
-especially when using [miekg/dns](https://github.com/miekg). It provides a mock of the DNS hierarchy,
-including the root zone, allowing you to test full trust chains using a mocked trust anchors.
+- **Real-Time DNS Queries**: Naughty Nameserver can be used as a live DNS server, responding to actual DNS queries. This makes it a powerful tool for developers and network administrators needing a reliable resource for DNSSEC validation testing. A hosted version is running on the domain `naughty-nameserver.com`.
+- **Unit Testing in Go**: Naughty Nameserver can be integrated into Go-based DNSSEC validator unit tests, especially when using [miekg/dns](https://github.com/miekg/dns). It provides a mock of the DNS hierarchy, including the root zone, allowing you to test full trust chains using a mocked trust anchor.
+
 
 
 > [!CAUTION]
@@ -40,7 +35,7 @@ dig @1.1.1.1 test.naughty-nameserver.com. +dnssec
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 54057
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 15270
 ;; flags: qr rd ra ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; OPT PSEUDOSECTION:
@@ -50,154 +45,189 @@ dig @1.1.1.1 test.naughty-nameserver.com. +dnssec
 
 ;; ANSWER SECTION:
 test.naughty-nameserver.com. 60	IN	A	192.0.2.53
-test.naughty-nameserver.com. 60	IN	RRSIG	A 13 3 300 20240902140751 20240831140751 25649 naughty-nameserver.com. AToTP/lo9uP/Yj+can2BwBYapCnvZrpqTzLtc1FtRg6gDExJa2xbXrtP 0yVQK72KAbZ7qVUzwgz9xS6+yGKTGQ==
+test.naughty-nameserver.com. 60	IN	RRSIG	A 13 3 300 20241017061753 20241015061753 32442 naughty-nameserver.com. c94CbLyb0Yld9ozK5J3pjjfEuGHyuBg0dZqTXOg9piZeos2pnIbV6+2B Fn86fXe+grNywgv3pMVDx6pAbsCd+g==
 
-;; Query time: 16 msec
+;; Query time: 49 msec
 ;; SERVER: 1.1.1.1#53(1.1.1.1)
-;; WHEN: Sun Sep 01 15:07:51 BST 2024
 ;; MSG SIZE  rcvd: 190
 ```
 
-An example *invalid* response will look something like:
+An example *invalid* response should look something like:
 ```text
-dig @1.1.1.1 test.rrsig-signature-invalid.naughty-nameserver.com. +dnssec
+dig @1.1.1.1 test.invalid-signature-message.naughty-nameserver.com. +dnssec
 
-; <<>> DiG 9.10.6 <<>> @1.1.1.1 test.rrsig-signature-invalid.naughty-nameserver.com. +dnssec
+; <<>> DiG 9.10.6 <<>> @1.1.1.1 test.invalid-signature-message.naughty-nameserver.com. +dnssec
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 52689
+;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 18047
 ;; flags: qr rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags: do; udp: 1232
-; OPT=15: 00 06 66 61 69 6c 65 64 20 74 6f 20 76 65 72 69 66 79 20 74 65 73 74 2e 72 72 73 69 67 2d 73 69 67 6e 61 74 75 72 65 2d 69 6e 76 61 6c 69 64 2e 6e 61 75 67 68 74 79 2d 6e 61 6d 65 73 65 72 76 65 72 2e 63 6f 6d 2e 20 41 3a 20 75 73 69 6e 67 20 44 4e 53 4b 45 59 20 69 64 73 20 3d 20 5b 33 32 32 38 5d ("..failed to verify test.rrsig-signature-invalid.naughty-nameserver.com. A: using DNSKEY ids = [3228]")
+; OPT=15: 00 06 66 61 69 6c 65 64 20 74 6f 20 76 65 72 69 66 79 20 74 65 73 74 2e 69 6e 76 61 6c 69 64 2d 73 69 67 6e 61 74 75 72 65 2d 6d 65 73 73 61 67 65 2e 6e 61 75 67 68 74 79 2d 6e 61 6d 65 73 65 72 76 65 72 2e 63 6f 6d 2e 20 41 3a 20 75 73 69 6e 67 20 44 4e 53 4b 45 59 20 69 64 73 20 3d 20 5b 34 36 30 33 30 5d ("..failed to verify test.invalid-signature-message.naughty-nameserver.com. A: using DNSKEY ids = [46030]")
 ;; QUESTION SECTION:
-;test.rrsig-signature-invalid.naughty-nameserver.com. IN	A
+;test.invalid-signature-message.naughty-nameserver.com. IN A
 
-;; Query time: 53 msec
+;; Query time: 50 msec
 ;; SERVER: 1.1.1.1#53(1.1.1.1)
-;; WHEN: Sun Sep 01 15:08:48 BST 2024
-;; MSG SIZE  rcvd: 184
+;; MSG SIZE  rcvd: 189
 ```
 
-Note - when a specific key algorithm is not mentioned below, the default of `ECDSA P-256 SHA256` is used.
+## Testing Scenarios
 
-## Invalid Domains
+When a specific key algorithm is not mentioned below, the default of `ECDSA P-256 SHA256` is used.
 
-### DS miss-match with the CSK used to sign the zone's records
-This zone returns two CSK DNSKEYs. One signs all the records, and the other aligns with the zone's DS record.
-This means that there is no trust chain as although the DS record maps to a returned key, that key was not
-used to sign any of the record sets.
-```text
-test.missmatch-ds.naughty-nameserver.com
-```
+### Valid Positive Scenarios
 
-### The DS record in the parent doesn't match any key
-```text
-test.incorrect-ds.naughty-nameserver.com
-```
+These scenarios describe conditions where a DNSSEC validator should validate the response as secure:
 
-### No DS records are returned from the parent
-```text
-test.missing-ds.naughty-nameserver.com
-```
+1. **VP-1**: A response signed with a 1024-bit RSA key using SHA-1 should be considered secure.  
+   Domain: `test.rsa-1024-sha1.naughty-nameserver.com.`  
+   [RFC 6944, Section 2.3](https://datatracker.ietf.org/doc/html/rfc6944#section-2.3)
 
-### DS record returned is for ZSK, not the KSK
-A KSK was used to sign the DNSKEY records, but the DS record set is for the ZSK used for non-DNSKEY records.
-```text
-test.zsk-ds.naughty-nameserver.com
-```
+2. **VP-2**: A response signed with a 2048-bit RSA key using SHA-256 should be considered secure.  
+   Domain: `test.rsa-2048-sha256.naughty-nameserver.com.`  
+   [RFC 6944, Section 2.3](https://datatracker.ietf.org/doc/html/rfc6944#section-2.3)
 
-### RRSig Signature invalid with the wrong message
-The returned RRSig is generated using a different A RR than what is returned in the answer.
-```text
-test.rrsig-signature-invalid.naughty-nameserver.com
-```
+3. **VP-3**: A response signed with a 4096-bit RSA key using SHA-512 should be considered secure.  
+   Domain: `test.rsa-4096-sha512.naughty-nameserver.com.`  
+   [RFC 6944, Section 2.3](https://datatracker.ietf.org/doc/html/rfc6944#section-2.3)
 
-### RRSing invalid as inception is in the future
-The inception time is set one hour into the future.
-```text
-test.rrsig-inception-invalid.naughty-nameserver.com
-```
+4. **VP-4**: A response signed with an ECDSA P-256 key using SHA-256 should be considered secure.  
+   Domain: `test.ecdsa-p256-sha256.naughty-nameserver.com.`  
+   [RFC 6944, Section 2.3](https://datatracker.ietf.org/doc/html/rfc6944#section-2.3)
 
-### RRSing invalid as expiration is in the past
-The expiration time is set one hour into the past.
-```text
-test.rrsig-expiration-invalid.naughty-nameserver.com
-```
+5. **VP-5**: A response signed with an ECDSA P-384 key using SHA-384 should be considered secure.  
+   Domain: `test.ecdsa-p384-sha384.naughty-nameserver.com.`  
+   [RFC 6944, Section 2.3](https://datatracker.ietf.org/doc/html/rfc6944#section-2.3)
 
-## Valid Domains
+6. **VP-6**: A response signed with an Ed25519 key should be considered secure.  
+   Domain: `test.ed25519.naughty-nameserver.com.`  
+   [RFC 6944, Section 2.3](https://datatracker.ietf.org/doc/html/rfc6944#section-2.3)
 
-### CSK Signed with 1024 RSA / SHA1
-```text
-test.rsa-1024-sha1.naughty-nameserver.com
-```
+7. **VP-7**: A response synthesized from a wildcard, including the expected NSEC record, should be considered secure.  
+   Domain: `test.wildcard-with-nsec.naughty-nameserver.com.`  
+   [RFC 4035, Section 5.3.4](https://datatracker.ietf.org/doc/html/rfc4035#section-5.3.4)
 
-### CSK Signed with 2048 RSA / SHA256
-```text
-test.rsa-2048-sha256.naughty-nameserver.com
-```
+8. **VP-8**: A response synthesized from a wildcard, including the expected NSEC3 record, should be considered secure.  
+   Domain: `test.wildcard-with-nsec3.naughty-nameserver.com.`  
+   [RFC 4035, Section 5.3.4](https://datatracker.ietf.org/doc/html/rfc4035#section-5.3.4)
 
-### CSK Signed with 4096 RSA / SHA256
-```text
-test.rsa-4096-sha512.naughty-nameserver.com
-```
+9. **VP-9**: A response signed with a DNSKEY that has a flag set to 256 should be considered secure.  
+   Domain: `test.key-flag-256.naughty-nameserver.com.`  
+   [RFC 4034, Section 2.1.1](https://datatracker.ietf.org/doc/html/rfc4034#section-2.1.1)
 
-### CSK Signed with ECDSA P-256 / SHA256
-```text
-test.ecdsa-p256-sha256.naughty-nameserver.com
-```
+10. **VP-10**: A response signed with a DNSKEY that has a flag set to 257 should be considered secure.  
+    Domain: `test.key-flag-257.naughty-nameserver.com.`  
+    [RFC 4034, Section 2.1.1](https://datatracker.ietf.org/doc/html/rfc4034#section-2.1.1)
 
-### CSK Signed with ECDSA P-384 / SHA384
-```text
-test.ecdsa-p384-sha384.naughty-nameserver.com
-```
+11. **VP-11**: A response associated with multiple DNSKEYs, where at least one key is valid and signs the RRSet, should be considered secure.  
+    Domain: `test.clashing-keys.naughty-nameserver.com.`  
+    [RFC 4035, Section 5.3.1](https://datatracker.ietf.org/doc/html/rfc4035#section-5.3.1)
 
-### CSK Signed with ed25519
-```text
-test.ed25519.naughty-nameserver.com
-```
+12. **VP-12**: A response with multiple DS records from a parent zone, where at least one DS record is valid, should be considered secure.  
+    Domain: `test.multiple-ds.naughty-nameserver.com.`  
+    [RFC 4035, Section 2.4](https://datatracker.ietf.org/doc/html/rfc4035#section-2.4)
 
-### Signed with two ZSKs, then one KSK.
-```text
-test.two-valid-zsks.naughty-nameserver.com
-```
+13. **VP-13**: A response with no DS record at a delegation point, where an NSEC3 record with the opt-out flag covers it, should be valid (but insecure).  
+    Domain: `test.deligation-optout-nsec3.naughty-nameserver.com.`  
+    [RFC 5155, Section 6](https://datatracker.ietf.org/doc/html/rfc5155#section-6)
 
-### Signed only using a ZSK (flags = 256)
-```text
-test.zsk-only.naughty-nameserver.com
-```
+### Invalid Positive Scenarios
 
-### Many DS records are returned from the parent, one being valid
-```text
-test.multiple-ds.naughty-nameserver.com
-```
+These scenarios describe conditions where a DNSSEC validator should mark the response as bogus:
 
-### Many (7) ed25519 CSKs with the exact same Flags, Protocol, Algorithm and KeyTag
-In this instance a validator should [try all keys](https://datatracker.ietf.org/doc/html/rfc4035#section-5.3.1) to 
-determine which is the correct one.
-(Hint - it's the middle one :-)
-```text
-test.clashing-keys.naughty-nameserver.com
-```
+1. **IP-1**: A synthesized response from a wildcard with an RRSIG label count mismatch and missing NSEC(3) records should be considered bogus.  
+   Domain: `test.nsec-missing-with-wildcard.naughty-nameserver.com.`  
+   [RFC 4035, Section 5.3.4](https://datatracker.ietf.org/doc/html/rfc4035#section-5.3.4), [RFC 5155, Section 8.7](https://datatracker.ietf.org/doc/html/rfc5155#section-8.7)
 
-### Two RRSigs are returned, but only one is valid
-```text
-test.one-valid-one-invalid-rrsig.naughty-nameserver.com
-```
+2. **IP-2**: A response signed with a DNSKEY where bit 7 of the flags is 0 should be considered bogus.  
+   Domain: `test.invalid-key-flag.naughty-nameserver.com.`  
+   [RFC 4034, Section 2.1.1](https://datatracker.ietf.org/doc/html/rfc4034#section-2.1.1)
 
-### Resolved using a Wildcard
-Includes the expected NSEC records
-```text
-test.wildcard.naughty-nameserver.com
-```
+3. **IP-3**: A response signed by a ZSK, where the DS record only points to the ZSK and not the KSK, should be considered bogus.  
+   Domain: `test.ds-key-missmatch.naughty-nameserver.com.`  
+   [RFC 4035, Section 5.2](https://datatracker.ietf.org/doc/html/rfc4035#section-5.2)
 
-### Chained CNAMEs with Wildcards
-Uses 3 chained CNAME records, 2 of them wildcards. And 1 wildcard A record. Includes all expected NSEC records.
-```text
-test.cname-chain.naughty-nameserver.com
-```
+4. **IP-4**: A response where the RRSet has changed since it was signed by the RRSIG should be considered bogus.  
+   Domain: `test.invalid-signature-message.naughty-nameserver.com.`  
+   [RFC 4035, Section 5.3.1](https://datatracker.ietf.org/doc/html/rfc4035#section-5.3.1)
+
+5. **IP-5**: A response with an RRSIG inception date set in the future should be considered bogus.  
+   Domain: `test.inception-in-future.naughty-nameserver.com.`  
+   [RFC 4035, Section 5.3.1](https://datatracker.ietf.org/doc/html/rfc4035#section-5.3.1)
+
+6. **IP-6**: A response with an RRSIG expiration date set in the past should be considered bogus.  
+   Domain: `test.expiration-in-past.naughty-nameserver.com.`  
+   [RFC 4035, Section 5.3.1](https://datatracker.ietf.org/doc/html/rfc4035#section-5.3.1)
+
+7. **IP-7**: A response where one or more RRTypes lack a valid RRSIG should be considered bogus.  
+   [RFC 4035, Section 2.2](https://datatracker.ietf.org/doc/html/rfc4035#section-2.2), [RFC 4035, Section 5.3.1](https://datatracker.ietf.org/doc/html/rfc4035#section-5.3.1)
+
+### Valid Negative Scenarios
+
+These scenarios describe conditions where a DNSSEC validator should validate the response as secure despite indicating no data (NODATA) or non-existence (NXDOMAIN):
+
+1. **VN-1**: An NXDOMAIN response with a single NSEC record covering both the QName and wildcard should be considered valid.  
+   Domain: `test.single-nsec-record.naughty-nameserver.com.`  
+   [RFC 4035, Section 5.4](https://datatracker.ietf.org/doc/html/rfc4035#section-5.4)
+
+2. **VN-2**: An NXDOMAIN response with two NSEC records, one covering the QName and one for the wildcard, should be considered valid.  
+   Domain: `test.two-nsec-records.naughty-nameserver.com.`  
+   [RFC 4035, Section 5.4](https://datatracker.ietf.org/doc/html/rfc4035#section-5.4)
+
+3. **VN-3**: A NODATA response with a single NSEC record showing the QType as missing should be considered valid.  
+   Domain: `test.nsec-nodata.naughty-nameserver.com.`  
+   [RFC 4035, Section 5.4](https://datatracker.ietf.org/doc/html/rfc4035#section-5.4)
+
+4. **VN-4**: An NXDOMAIN response with a single NSEC3 record covering the Closest Encloser, Next closer name, and wildcard should be considered valid.  
+   Domain: `test.one-nsec3-nxdomain.naughty-nameserver.com.`  
+   [RFC 5155, Section 7.2.2](https://datatracker.ietf.org/doc/html/rfc5155#section-7.2.2)
+
+5. **VN-5**: An NXDOMAIN response with two NSEC3 records, one for the Closest Encloser and Next closer name, and another for the wildcard, should be considered valid.  
+   Domain: `test.two-a-nsec3-nxdomain.naughty-nameserver.com.`  
+   [RFC 5155, Section 7.2.2](https://datatracker.ietf.org/doc/html/rfc5155#section-7.2.2)
+
+6. **VN-6**: An NXDOMAIN response with two NSEC3 records, one for the Closest Encloser and another for the Next closer name and wildcard, should be considered valid.  
+   Domain: `test.two-b-nsec3-nxdomain.naughty-nameserver.com.`  
+   [RFC 5155, Section 7.2.2](https://datatracker.ietf.org/doc/html/rfc5155#section-7.2.2)
+
+7. **VN-7**: An NXDOMAIN response with three NSEC3 records, one each for the Closest Encloser, Next closer name, and wildcard, should be considered valid.  
+   Domain: `test.three-nsec3-nxdomain.naughty-nameserver.com.`  
+   [RFC 7129, Section 5.5](https://datatracker.ietf.org/doc/html/rfc7129#section-5.5), [RFC 5155, Section 7.2.2](https://datatracker.ietf.org/doc/html/rfc5155#section-7.2.2)
+
+8. **VN-8**: A NODATA response with a single NSEC3 record showing the QType as missing should be considered valid.  
+   Domain: `test.nsec3-nodata.naughty-nameserver.com.`  
+   [RFC 5155, Section 7.2.3](https://datatracker.ietf.org/doc/html/rfc5155#section-7.2.3)
+
+### Invalid Negative Scenarios
+
+These scenarios describe conditions where a DNSSEC validator should mark the response as bogus due to an invalid or improperly configured negative response:
+
+1. **IN-1**: A response missing a DS record at a delegation point where the QName matching the NSEC record has the DS bit set should be considered bogus.  
+   Domain: `test.invalid-deligation-nsec3-bitmap.naughty-nameserver.com.`
+
+2. **IN-2**: A response missing a DS record at a delegation point where the QName matching the NSEC3 record has the DS bit set should be considered bogus.  
+   Domain: `test.invalid-deligation-nsec3-bitmap.naughty-nameserver.com.`  
+   [RFC 5155, Section 8](https://datatracker.ietf.org/doc/html/rfc5155#section-8)
+
+3. **IN-3**: A response missing a DS record at a delegation point where the NSEC3 record covering it does not have the opt-out flag set should be considered bogus.  
+   Domain: `test.missing-deligation-optout-nsec3.naughty-nameserver.com.`  
+   [RFC 5155, Section 6](https://datatracker.ietf.org/doc/html/rfc5155#section-6)
+
+4. **IN-4**: A response with an NSEC3 record that has an unknown hash algorithm should be considered bogus, assuming no other valid records.  
+   Domain: `test.nsec3-invalid-hash.naughty-nameserver.com.`  
+   [RFC 5155, Section 8.1](https://datatracker.ietf.org/doc/html/rfc5155#section-8.1)
+
+5. **IN-5**: A response with an NSEC3 record that has a flag value other than 0 or 1 should be considered bogus, assuming no other valid records.  
+   Domain: `test.nsec3-invalid-flag.naughty-nameserver.com.`  
+   [RFC 5155, Section 8.2](https://datatracker.ietf.org/doc/html/rfc5155#section-8.2)
+
+6. **IN-6**: A response missing a DS record at a delegation point, without a valid denial of existence, should be considered bogus.  
+   Domain: `test.deligation-no-ds.naughty-nameserver.com.`  
+   [RFC 5155, Section 6](https://datatracker.ietf.org/doc/html/rfc5155#section-6)
+
 
 # Licence
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
