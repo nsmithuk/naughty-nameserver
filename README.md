@@ -231,7 +231,7 @@ These scenarios describe conditions where a DNSSEC validator should mark the res
    [RFC 5155, Section 6](https://datatracker.ietf.org/doc/html/rfc5155#section-6)
 
 
-### Experimental Scenarios (Post Quantum Cryptography)
+### Experimental Scenarios - Post Quantum Cryptography
 
 These scenarios are highly experimental and involve the use of Post Quantum Cryptography (PQC) with the ML-DSA (Module-Lattice Digital Signature Algorithm) for signing. Since PQC is not currently part of any DNSSEC RFC, these scenarios are included for testing cutting-edge cryptographic techniques.
 
@@ -244,6 +244,32 @@ These scenarios are highly experimental and involve the use of Post Quantum Cryp
 3. **EXP-3**: A positive response signed with ML-DSA-87 should be considered secure.  
    Domain: `test.ml-dsa-87.naughty-nameserver.com.`
 
+### Thoughts on the Impact of Post Quantum Cryptography (PQC)
+
+The introduction of Post Quantum Cryptography (PQC) to DNSSEC could bring significant changes, particularly concerning how DNS messages are transmitted. One of the main implications is the size of the signed keysets when using PQC algorithms like ML-DSA, which are substantially larger than those of current cryptographic standards.
+
+- For context, a signed keyset using ECDSA P-256 is around **400 bytes**.
+- A signed keyset using RSA 2048 is approximately **800 bytes**.
+- In comparison, a signed keyset using the smallest level (44) of ML-DSA is about **5,300 bytes**.
+- The NSCS recommended level (65) of ML-DSA results in a signed keyset of around **7,100 bytes**.
+
+Given these sizes, it's clear that some DNS messages may no longer be suitable for transmission over UDP, particularly during DNSKEY lookups. Traditionally, DNS uses UDP for its efficiency, but there is a tendency to avoid UDP for any response over **4,096 bytes**. Larger responses risk fragmentation, which can lead to packet loss and other issues.
+
+As a result, to accommodate the increased size of PQC-signed keysets, we may need to rely more heavily on **TCP** for DNS transactions. While this shift could have performance implications, especially in terms of latency and connection overhead, it is a necessary adaptation to ensure DNSSEC remains secure against future quantum attacks. Thus, the integration of PQC may herald a new era where the DNS ecosystem evolves to prioritize reliability and security over speed, marking a notable shift in its design philosophy.
+
+#### See the example from above
+```shell
+dig @ns1.naughty-nameserver.com ecdsa-p256-sha256.naughty-nameserver.com. DNSKEY +dnssec
+```
+```shell
+dig @ns1.naughty-nameserver.com rsa-2048-sha256.naughty-nameserver.com. DNSKEY +dnssec
+```
+```shell
+dig @ns1.naughty-nameserver.com test.ml-dsa-44.naughty-nameserver.com. DNSKEY +dnssec
+```
+```shell
+dig @ns1.naughty-nameserver.com test.ml-dsa-65.naughty-nameserver.com. DNSKEY +dnssec
+```
    
 # Licence
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
