@@ -250,8 +250,8 @@ The introduction of Post Quantum Cryptography (PQC) to DNSSEC could bring signif
 
 - For context, a signed keyset using ECDSA P-256 is around **400 bytes**.
 - A signed keyset using RSA 2048 is approximately **800 bytes**.
-- In comparison, a signed keyset using the smallest level (44) of ML-DSA is about **5,300 bytes**.
-- The NSCS recommended level (65) of ML-DSA results in a signed keyset of around **7,100 bytes**.
+- In comparison, a signed keyset using the smallest level (44) of ML-DSA is about **4,000 bytes**.
+- The NSCS recommended level (65) of ML-DSA results in a signed keyset of around **5,500 bytes**.
 
 Given these sizes, it's clear that some DNS messages may no longer be suitable for transmission over UDP, particularly during DNSKEY lookups. Traditionally, DNS uses UDP for its efficiency, but there is a tendency to avoid UDP for any response over **4,096 bytes**. Larger responses risk fragmentation, which can lead to packet loss and other issues.
 
@@ -265,10 +265,10 @@ dig @ns1.naughty-nameserver.com ecdsa-p256-sha256.naughty-nameserver.com. DNSKEY
 dig @ns1.naughty-nameserver.com rsa-2048-sha256.naughty-nameserver.com. DNSKEY +dnssec
 ```
 ```shell
-dig @ns1.naughty-nameserver.com test.ml-dsa-44.naughty-nameserver.com. DNSKEY +dnssec
+dig @ns1.naughty-nameserver.com ml-dsa-44.naughty-nameserver.com. DNSKEY +dnssec
 ```
 ```shell
-dig @ns1.naughty-nameserver.com test.ml-dsa-65.naughty-nameserver.com. DNSKEY +dnssec
+dig @ns1.naughty-nameserver.com ml-dsa-65.naughty-nameserver.com. DNSKEY +dnssec
 ```
    
 # Licence
