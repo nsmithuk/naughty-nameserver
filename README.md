@@ -28,9 +28,10 @@ with the IP address `192.0.2.53`. In the case of the lookup being performed via 
 this A record should _not_ be returned for domains that are designed to return an invalid response.
 
 An example *valid* response will look something like:
-```text
+```shell
 dig @1.1.1.1 test.naughty-nameserver.com. +dnssec
-
+````
+```text
 ; <<>> DiG 9.10.6 <<>> @1.1.1.1 test.naughty-nameserver.com. +dnssec
 ; (1 server found)
 ;; global options: +cmd
@@ -53,9 +54,10 @@ test.naughty-nameserver.com. 60	IN	RRSIG	A 13 3 300 20241017061753 2024101506175
 ```
 
 An example *invalid* response should look something like:
-```text
+```shell
 dig @1.1.1.1 test.invalid-signature-message.naughty-nameserver.com. +dnssec
-
+```
+```text
 ; <<>> DiG 9.10.6 <<>> @1.1.1.1 test.invalid-signature-message.naughty-nameserver.com. +dnssec
 ; (1 server found)
 ;; global options: +cmd
@@ -229,6 +231,20 @@ These scenarios describe conditions where a DNSSEC validator should mark the res
    [RFC 5155, Section 6](https://datatracker.ietf.org/doc/html/rfc5155#section-6)
 
 
+### Experimental Scenarios (Post Quantum Cryptography)
+
+These scenarios are highly experimental and involve the use of Post Quantum Cryptography (PQC) with the ML-DSA (Module-Lattice Digital Signature Algorithm) for signing. Since PQC is not currently part of any DNSSEC RFC, these scenarios are included for testing cutting-edge cryptographic techniques.
+
+1. **EXP-1**: A positive response signed with ML-DSA-44 should be considered secure.  
+   Domain: `test.ml-dsa-44.naughty-nameserver.com.`
+
+2. **EXP-2**: A positive response signed with ML-DSA-65 should be considered secure.  
+   Domain: `test.ml-dsa-65.naughty-nameserver.com.`
+
+3. **EXP-3**: A positive response signed with ML-DSA-87 should be considered secure.  
+   Domain: `test.ml-dsa-87.naughty-nameserver.com.`
+
+   
 # Licence
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
