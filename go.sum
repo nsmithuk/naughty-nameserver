@@ -1,7 +1,7 @@
 github.com/cloudflare/circl v1.5.0 h1:hxIWksrX6XN5a1L2TI/h53AGPhNHoUBo+TD1ms9+pys=
 github.com/cloudflare/circl v1.5.0/go.mod h1:uddAzsPgqdMAYatqJ0lsjX1oECcQLIlRpzZh3pJrofs=
-github.com/nsmithuk/dns v0.0.0-20241015172342-ddc2cf9519f3 h1:XoTz0NAa9EVTuOTsf+mIZyrY0yDyCfWeJlv9gXlMLeo=
-github.com/nsmithuk/dns v0.0.0-20241015172342-ddc2cf9519f3/go.mod h1:5+nnW13B+rdg9qALoCRIM4f9m0qDSs/x/fFHgkxVluU=
+github.com/nsmithuk/dns v1.1.62-pqc h1:Gv2OEQLKedw6fZKsUUja69HwT6hhgcZNhrsXVK12+EE=
+github.com/nsmithuk/dns v1.1.62-pqc/go.mod h1:5+nnW13B+rdg9qALoCRIM4f9m0qDSs/x/fFHgkxVluU=
 golang.org/x/mod v0.21.0 h1:vvrHzRwRfVKSiLrG+d4FMl/Qi4ukBCE6kZlTUkDYRT0=
 golang.org/x/mod v0.21.0/go.mod h1:6SkKJ3Xj0I0BrPOZoBy3bdMptDDU9oJrpohJ3eWZ1fY=
 golang.org/x/net v0.30.0 h1:AcW1SDZMkb8IpzCdQUaIq2sP4sZ4zw+55h6ynffypl4=
