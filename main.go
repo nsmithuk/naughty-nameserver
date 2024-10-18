@@ -40,7 +40,7 @@ func main() {
 	ns1 := "13.40.162.160"
 	ns2 := "13.40.162.160"
 
-	nameserver = naughty.NewNameserver(domain, []string{ns1, ns2})
+	nameserver = naughty.NewNameserver(domain, []string{ns1, ns2}, false)
 
 	err := nameserver.AddBehaviours(behaviour.GeBehaviours())
 	if err != nil {

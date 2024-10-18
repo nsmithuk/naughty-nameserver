@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/miekg/dns"
 	"net"
+	"slices"
 	"strings"
 )
 
@@ -26,7 +27,7 @@ type GluedNS struct {
 	A  *dns.A
 }
 
-func NewNameserver(baseZoneName string, nsIPv4s []string) *Nameserver {
+func NewNameserver(baseZoneName string, nsIPv4s []string, includeRoot bool) *Nameserver {
 	if len(nsIPv4s) == 0 {
 		panic("no nsIPv4s set")
 	}
@@ -60,7 +61,7 @@ func NewNameserver(baseZoneName string, nsIPv4s []string) *Nameserver {
 		Zones:        make(map[string]*Zone),
 	}
 
-	server.buildInitialZones()
+	server.buildInitialZones(includeRoot)
 
 	return server
 }
@@ -148,7 +149,7 @@ func (ns *Nameserver) Exchange(qmsg *dns.Msg) (*dns.Msg, error) {
 	return rmsg, fmt.Errorf("no response found for %s", name)
 }
 
-func (ns *Nameserver) buildInitialZones() {
+func (ns *Nameserver) buildInitialZones(includeRoot bool) {
 	/*
 		Creates the zone for the base domain. For example: naughy-nameserver.com.
 
@@ -158,9 +159,13 @@ func (ns *Nameserver) buildInitialZones() {
 			- com.
 			- .
 	*/
+	zones := slices.Values([]string{ns.BaseZoneName})
+	if includeRoot {
+		zones = IterateDownDomainHierarchy(ns.BaseZoneName)
+	}
+
 	var last *Zone
-	//for name := range IterateDownDomainHierarchy(ns.BaseZoneName) {
-	for _, name := range []string{ns.BaseZoneName} {
+	for name := range zones {
 		var signer Signer
 		switch name {
 		case ns.BaseZoneName:
